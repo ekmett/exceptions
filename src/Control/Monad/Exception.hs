@@ -14,9 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-{-# LANGUAGE CPP, GeneralizedNewtypeDeriving, RankNTypes #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
+
 #ifndef MIN_VERSION_transformers
 #define MIN_VERSION_transformers(x,y,z) 1
+#endif
+
+#ifndef MIN_VERSION_mtl
+#define MIN_VERSION_mtl(x,y,z) 1
 #endif
 
 --------------------------------------------------------------------
@@ -64,12 +74,10 @@ import Control.Applicative (Alternative, Applicative)
 import Control.Arrow (left)
 import Control.Exception (Exception(..), SomeException(..))
 import qualified Control.Exception as ControlException
-import Control.Monad (liftM, MonadPlus)
-import Control.Monad.Fix (MonadFix)
-import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Trans.Class (lift, MonadTrans)
 import qualified Control.Monad.Trans.Error as Error
 import qualified Control.Monad.Trans.State.Lazy as LazyState
+import Control.Monad.Reader
+import Control.Monad.State
 #if MIN_VERSION_transformers(0,3,0)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
@@ -128,12 +136,22 @@ runExceptionT :: Monad m => ExceptionT m a -> m (Either SomeException a)
 runExceptionT = liftM (left unWrapException) . Error.runErrorT . unEx
 
 instance Monad m => MonadException (ExceptionT m) where
-    throwM = ExceptionT . Error.throwError . WrapException . toException
-    catch a c = ExceptionT $ unEx a `Error.catchError`
-        (\e -> maybe (Error.throwError e) (unEx . c)
-                (fromException . unWrapException $ e))
-    mask a = a id
+  throwM = ExceptionT . Error.throwError . WrapException . toException
+  catch a c = ExceptionT $ unEx a `Error.catchError`
+      (\e -> maybe (Error.throwError e) (unEx . c)
+              (fromException . unWrapException $ e))
+  mask a = a id
 
+instance MonadState s m => MonadState s (ExceptionT m) where
+  get = lift get
+  put = lift . put
+#if MIN_VERSION_mtl(2,1,0)
+  state = lift . state
+#endif
+
+instance MonadReader e m => MonadReader e (ExceptionT m) where
+  ask = lift ask
+  local f (ExceptionT m) = ExceptionT (local f m)
 
 newtype WrappedException = WrapException { unWrapException :: SomeException }
 instance Error.Error WrappedException where
