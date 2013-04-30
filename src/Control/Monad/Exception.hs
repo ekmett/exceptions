@@ -68,19 +68,15 @@ module Control.Monad.Exception (
   ) where
 
 import Prelude hiding (catch)
-
-import Control.Applicative (Alternative, Applicative)
-import Control.Arrow (left)
+import Control.Applicative
 import Control.Exception (Exception(..), SomeException(..))
 import qualified Control.Exception as ControlException
-import qualified Control.Monad.Trans.Error as Error
 import qualified Control.Monad.Trans.State.Lazy as LazyState
 import Control.Monad.Reader
 import Control.Monad.State
-#if MIN_VERSION_transformers(0,3,0)
-import Data.Foldable (Foldable)
-import Data.Traversable (Traversable)
-#endif
+import Data.Foldable
+import Data.Monoid
+import Data.Traversable as Traversable
 
 -- $mtl
 -- The mtl style typeclass
@@ -121,24 +117,65 @@ instance MonadException m => MonadException (LazyState.StateT s m) where
 -- The transformers style monad transfomer
 
 -- | Add exception abilities to a monad.
-newtype ExceptionT m a =
-    ExceptionT { unEx :: Error.ErrorT WrappedException m a }
-#if MIN_VERSION_transformers(0,3,0)
-  deriving (Functor, Foldable, Traversable, Applicative, Alternative,
-            Monad, MonadPlus, MonadFix, MonadTrans, MonadIO)
-#else
-  deriving (Functor, Applicative, Alternative,
-            Monad, MonadPlus, MonadFix, MonadTrans, MonadIO)
-#endif
+newtype ExceptionT m a = ExceptionT { runExceptionT :: m (Either SomeException a) }
 
-runExceptionT :: Monad m => ExceptionT m a -> m (Either SomeException a)
-runExceptionT = liftM (left unWrapException) . Error.runErrorT . unEx
+instance Monad m => Functor (ExceptionT m) where
+  fmap f (ExceptionT m) = ExceptionT (liftM (fmap f) m)
+
+instance Monad m => Applicative (ExceptionT m) where
+  pure a = ExceptionT (return (Right a))
+  (<*>) = ap
+
+instance Monad m => Monad (ExceptionT m) where
+  return a = ExceptionT (return (Right a))
+  ExceptionT m >>= k = ExceptionT $ m >>= \ea -> case ea of
+    Left e -> return (Left e)
+    Right a -> runExceptionT (k a)
+  fail = ExceptionT . return . Left . toException . userError
+
+instance MonadFix m => MonadFix (ExceptionT m) where
+  mfix f = ExceptionT $ mfix $ \a -> runExceptionT $ f $ case a of
+    Right r -> r
+    _       -> error "empty mfix argument"
+
+instance Foldable m => Foldable (ExceptionT m) where
+  foldMap f (ExceptionT m) = foldMap (foldMapEither f) m where
+    foldMapEither g (Right a) = g a
+    foldMapEither _ (Left _) = mempty
+
+instance (Monad m, Traversable m) => Traversable (ExceptionT m) where
+  traverse f (ExceptionT m) = ExceptionT <$> Traversable.traverse (traverseEither f) m where
+    traverseEither g (Right a) = Right <$> g a
+    traverseEither _ (Left e) = pure (Left e)
+
+instance Monad m => Alternative (ExceptionT m) where
+  empty = mzero
+  (<|>) = mplus
+
+instance Monad m => MonadPlus (ExceptionT m) where
+  mzero = ExceptionT $ return $ Left $ toException $ userError ""
+  mplus (ExceptionT m) (ExceptionT n) = ExceptionT $ m >>= \ea -> case ea of
+    Left _ -> n
+    Right a -> return (Right a)
+
+
+instance MonadTrans ExceptionT where
+  lift m = ExceptionT $ do
+    a <- m
+    return $ Right a
+
+instance MonadIO m => MonadIO (ExceptionT m) where
+  liftIO m = ExceptionT $ do
+    a <- liftIO m
+    return $ Right a
 
 instance Monad m => MonadException (ExceptionT m) where
-  throwM = ExceptionT . Error.throwError . WrapException . toException
-  catch a c = ExceptionT $ unEx a `Error.catchError`
-      (\e -> maybe (Error.throwError e) (unEx . c)
-              (fromException . unWrapException $ e))
+  throwM = ExceptionT . return . Left . toException
+  catch (ExceptionT m) c = ExceptionT $ m >>= \ea -> case ea of
+    Left e -> case fromException e of
+      Just e' -> runExceptionT (c e')
+      Nothing -> return (Left e)
+    Right a -> return (Right a)
   mask a = a id
 
 instance MonadState s m => MonadState s (ExceptionT m) where
@@ -151,11 +188,6 @@ instance MonadState s m => MonadState s (ExceptionT m) where
 instance MonadReader e m => MonadReader e (ExceptionT m) where
   ask = lift ask
   local f (ExceptionT m) = ExceptionT (local f m)
-
-newtype WrappedException = WrapException { unWrapException :: SomeException }
-instance Error.Error WrappedException where
-    strMsg = WrapException . toException . userError
-
 
 -- $utilities
 -- These functions follow those from "Control.Exception", except that they are
@@ -177,18 +209,18 @@ catchIOError = catch
 -- predicates for testing 'IOError' values in "System.IO.Error".
 catchIf :: (MonadException m, Exception e) =>
     (e -> Bool) -> m a -> (e -> m a) -> m a
-catchIf f a b = a `catch` (\e -> if f e then b e else throwM e)
+catchIf f a b = a `catch` \e -> if f e then b e else throwM e
 
 -- | A more generalized way of determining which exceptions to catch at
 -- run time.
 catchJust :: (MonadException m, Exception e) =>
     (e -> Maybe b) -> m a -> (b -> m a) -> m a
-catchJust f a b = a `catch` (\e -> maybe (throwM e) b $ f e)
+catchJust f a b = a `catch` \e -> maybe (throwM e) b $ f e
 
 -- | Run an action only if an exception is thrown in the main action. The
 -- exception is not caught, simply rethrown.
 onException :: MonadException m => m a -> m b -> m a
-onException action handler = action `catchAll` (\e -> handler >> throwM e)
+onException action handler = action `catchAll` \e -> handler >> throwM e
 
 -- | Generalized abstracted pattern of safe resource acquisition and release
 -- in the face of exceptions. The first action \"aquires\" some value, which
