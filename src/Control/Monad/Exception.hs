@@ -84,6 +84,7 @@ import qualified Control.Monad.Trans.State.Lazy as LazyS
 import qualified Control.Monad.Trans.State.Strict as StrictS
 import qualified Control.Monad.Trans.Writer.Lazy as LazyW
 import qualified Control.Monad.Trans.Writer.Strict as StrictW
+import Control.Monad.Trans.Identity
 import Control.Monad.Reader as Reader
 import Control.Monad.RWS
 import Data.Foldable
@@ -113,6 +114,12 @@ instance MonadException IO where
   throwM = ControlException.throwIO
   catch = ControlException.catch
   mask = ControlException.mask
+
+instance MonadException m => MonadException (IdentityT m) where
+  throwM e = lift $ throwM e
+  catch (IdentityT m) f = IdentityT (catch m (runIdentityT . f))
+  mask a = IdentityT $ mask $ \u -> runIdentityT (a $ q u)
+    where q u = IdentityT . u . runIdentityT
 
 instance MonadException m => MonadException (LazyS.StateT s m) where
   throwM e = lift $ throwM e
@@ -156,9 +163,8 @@ instance (MonadException m, Monoid w) => MonadException (StrictRWS.RWST r w s m)
   mask a = StrictRWS.RWST $ \r s -> mask $ \u -> StrictRWS.runRWST (a $ q u) r s
     where q u (StrictRWS.RWST b) = StrictRWS.RWST $ \ r s -> u (b r s)
 
-
 -- $transformer
--- The transformers style monad transfomer
+-- The @transformers@-style monad transfomer
 
 -- | Add exception abilities to a monad.
 newtype ExceptionT m a = ExceptionT { runExceptionT :: m (Either SomeException a) }
