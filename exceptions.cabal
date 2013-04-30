@@ -1,0 +1,44 @@
+name:          exceptions
+category:      Control, Exceptions, Monad
+version:       0.1
+cabal-version: >= 1.8
+license:       OtherLicense
+license-file:  LICENSE
+author:        Edward A. Kmett
+maintainer:    Edward A. Kmett <ekmett@gmail.com>
+stability:     provisional
+homepage:      http://github.com/ekmett/exceptions/
+bug-reports:   http://github.com/ekmett/exceptions/issues
+copyright:     Copyright (C) 2013 Edward A. Kmett
+               Copyright (C) 2012 Google, Inc.
+build-type:    Simple
+tested-with:   GHC == 7.4.1, GHC == 7.6.1
+synopsis:      Extensible optionally-pure exceptions
+description:   Extensible optionally-pure exceptions
+
+extra-source-files:
+  .travis.yml
+  .ghci
+  .gitignore
+  .vim.custom
+  travis/cabal-apt-install
+  travis/config
+  AUTHORS.markdown
+  README.markdown
+  CHANGELOG.markdown
+
+source-repository head
+  type: git
+  location: git://github.com/ekmett/exceptions.git
+
+library
+  build-depends:
+    base                      >= 4.3      && < 5,
+    transformers              >= 0.2      && < 0.4,
+    mtl                       >= 2.0      && < 2.2
+
+  exposed-modules:
+    Control.Monad.Exception
+
+  ghc-options: -Wall -fwarn-tabs -O2
+  hs-source-dirs: src
