@@ -77,6 +77,8 @@ import Prelude hiding (catch)
 import Control.Applicative
 import Control.Exception (Exception(..), SomeException(..))
 import qualified Control.Exception as ControlException
+import qualified Control.Monad.Trans.RWS.Lazy as LazyRWS
+import qualified Control.Monad.Trans.RWS.Strict as StrictRWS
 import qualified Control.Monad.Trans.State.Lazy as LazyS
 import qualified Control.Monad.Trans.State.Strict as StrictS
 import qualified Control.Monad.Trans.Writer.Lazy as LazyW
@@ -116,19 +118,19 @@ instance MonadException m => MonadException (LazyS.StateT s m) where
   throwM e = lift $ throwM e
   catch = LazyS.liftCatch catch
   mask a = LazyS.StateT $ \s -> mask $ \u -> LazyS.runStateT (a $ q u) s
-    where q u b = LazyS.StateT $ \s -> u $ LazyS.runStateT b s
+    where q u (LazyS.StateT b) = LazyS.StateT (u . b)
 
 instance MonadException m => MonadException (StrictS.StateT s m) where
   throwM e = lift $ throwM e
   catch = StrictS.liftCatch catch
   mask a = StrictS.StateT $ \s -> mask $ \u -> StrictS.runStateT (a $ q u) s
-    where q u b = StrictS.StateT $ \s -> u $ StrictS.runStateT b s
+    where q u (StrictS.StateT b) = StrictS.StateT (u . b)
 
 instance MonadException m => MonadException (ReaderT r m) where
   throwM e = lift $ throwM e
   catch (ReaderT m) c = ReaderT $ \r -> m r `catch` \e -> runReaderT (c e) r
   mask a = ReaderT $ \e -> mask $ \u -> Reader.runReaderT (a $ q u) e
-    where q u b = ReaderT $ \e -> u $ runReaderT b e
+    where q u (ReaderT b) = ReaderT (u . b)
 
 instance (MonadException m, Monoid w) => MonadException (StrictW.WriterT w m) where
   throwM e = lift $ throwM e
@@ -142,6 +144,17 @@ instance (MonadException m, Monoid w) => MonadException (LazyW.WriterT w m) wher
   mask a = LazyW.WriterT $ mask $ \u -> LazyW.runWriterT (a $ q u)
     where q u b = LazyW.WriterT $ u (LazyW.runWriterT b)
 
+instance (MonadException m, Monoid w) => MonadException (LazyRWS.RWST r w s m) where
+  throwM e = lift $ throwM e
+  catch (LazyRWS.RWST m) h = LazyRWS.RWST $ \r s -> m r s `catch` \e -> LazyRWS.runRWST (h e) r s
+  mask a = LazyRWS.RWST $ \r s -> mask $ \u -> LazyRWS.runRWST (a $ q u) r s
+    where q u (LazyRWS.RWST b) = LazyRWS.RWST $ \ r s -> u (b r s)
+
+instance (MonadException m, Monoid w) => MonadException (StrictRWS.RWST r w s m) where
+  throwM e = lift $ throwM e
+  catch (StrictRWS.RWST m) h = StrictRWS.RWST $ \r s -> m r s `catch` \e -> StrictRWS.runRWST (h e) r s
+  mask a = StrictRWS.RWST $ \r s -> mask $ \u -> StrictRWS.runRWST (a $ q u) r s
+    where q u (StrictRWS.RWST b) = StrictRWS.RWST $ \ r s -> u (b r s)
 
 
 -- $transformer
