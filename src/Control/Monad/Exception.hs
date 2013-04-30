@@ -90,8 +90,10 @@ import Control.Monad.RWS
 import Data.Foldable
 import Data.Traversable as Traversable
 
+------------------------------------------------------------------------------
 -- $mtl
 -- The mtl style typeclass
+------------------------------------------------------------------------------
 
 class Monad m => MonadException m where
   -- | Throw an exception. Note that this throws when this action is run in
@@ -163,8 +165,10 @@ instance (MonadException m, Monoid w) => MonadException (StrictRWS.RWST r w s m)
   mask a = StrictRWS.RWST $ \r s -> mask $ \u -> StrictRWS.runRWST (a $ q u) r s
     where q u (StrictRWS.RWST b) = StrictRWS.RWST $ \ r s -> u (b r s)
 
+------------------------------------------------------------------------------
 -- $transformer
 -- The @transformers@-style monad transfomer
+------------------------------------------------------------------------------
 
 -- | Add exception abilities to a monad.
 newtype ExceptionT m a = ExceptionT { runExceptionT :: m (Either SomeException a) }
@@ -263,10 +267,12 @@ mapExceptionT :: (m (Either SomeException a) -> n (Either SomeException b))
           -> ExceptionT n b
 mapExceptionT f m = ExceptionT $ f (runExceptionT m)
 
+------------------------------------------------------------------------------
 -- $utilities
 -- These functions follow those from "Control.Exception", except that they are
 -- based on methods from the 'MonadException' typeclass. See
 -- "Control.Exception" for API usage.
+------------------------------------------------------------------------------
 
 -- | Catches all exceptions, and somewhat defeats the purpose of the extensible
 -- exception system. Use sparingly.
