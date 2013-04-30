@@ -19,19 +19,28 @@ limitations under the License.
 #define MIN_VERSION_transformers(x,y,z) 1
 #endif
 
-{-| This module supports monads that can throw extensible exceptions. The
-    exceptions are the very same from "Control.Exception", and the operations
-    offered very similar, but here they are not limited to 'IO'.
-
-    This code is in the style of both transformers and mtl, and is compatible
-    with them, though doesn't mimic the module structure or offer the complete
-    range of features in those packages.
-
-    This is very similar to 'ErrorT' and 'MonadError', but based on features of
-    "Control.Exception". In particular, it handles the complex case of
-    asynchronous exceptions by including 'mask' in the typeclass. Note that the
-    extensible extensions feature relies the RankNTypes language extension.
--}
+--------------------------------------------------------------------
+-- |
+-- Copyright :  (c) Edward Kmett 2013
+--              (c) Google Inc. 2012
+-- License   :  BSD3
+-- Maintainer:  Edward Kmett <ekmett@gmail.com>
+-- Stability :  experimental
+-- Portability: non-portable
+--
+-- This module supports monads that can throw extensible exceptions. The
+-- exceptions are the very same from "Control.Exception", and the operations
+-- offered very similar, but here they are not limited to 'IO'.
+--
+-- This code is in the style of both transformers and mtl, and is compatible
+-- with them, though doesn't mimic the module structure or offer the complete
+-- range of features in those packages.
+--
+-- This is very similar to 'ErrorT' and 'MonadError', but based on features of
+-- "Control.Exception". In particular, it handles the complex case of
+-- asynchronous exceptions by including 'mask' in the typeclass. Note that the
+-- extensible extensions feature relies the RankNTypes language extension.
+--------------------------------------------------------------------
 module Control.Monad.Exception (
     -- * Typeclass
     -- $mtl
