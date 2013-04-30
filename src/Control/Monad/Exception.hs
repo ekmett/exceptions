@@ -71,46 +71,71 @@ import Prelude hiding (catch)
 import Control.Applicative
 import Control.Exception (Exception(..), SomeException(..))
 import qualified Control.Exception as ControlException
-import qualified Control.Monad.Trans.State.Lazy as LazyState
-import Control.Monad.Reader
+import qualified Control.Monad.Trans.State.Lazy as LazyS
+import qualified Control.Monad.Trans.State.Strict as StrictS
+import qualified Control.Monad.Trans.Writer.Lazy as LazyW
+import qualified Control.Monad.Trans.Writer.Strict as StrictW
+import Control.Monad.Reader as Reader
+import Control.Monad.Writer
 import Control.Monad.State
 import Data.Foldable
-import Data.Monoid
 import Data.Traversable as Traversable
 
 -- $mtl
 -- The mtl style typeclass
 
 class Monad m => MonadException m where
-    -- | Throw an exception. Note that this throws when this action is run in
-    -- the monad /@m@/, not when it is applied. It is a generalization of
-    -- "Control.Exception"'s 'Control.Exception.throwIO'.
-    throwM :: Exception e => e -> m a
+  -- | Throw an exception. Note that this throws when this action is run in
+  -- the monad /@m@/, not when it is applied. It is a generalization of
+  -- "Control.Exception"'s 'Control.Exception.throwIO'.
+  throwM :: Exception e => e -> m a
 
-    -- | Provide a handler for exceptions thrown during execution of the first
-    -- action. Note that type of the type of the argument to the handler will
-    -- constrain which exceptions are caught. See "Control.Exception"'s
-    -- 'Control.Exception.catch'.
-    catch :: Exception e => m a -> (e -> m a) -> m a
+  -- | Provide a handler for exceptions thrown during execution of the first
+  -- action. Note that type of the type of the argument to the handler will
+  -- constrain which exceptions are caught. See "Control.Exception"'s
+  -- 'Control.Exception.catch'.
+  catch :: Exception e => m a -> (e -> m a) -> m a
 
-    -- | Runs an action with asynchronous exceptions diabled. The action is
-    -- provided a method for restoring the async. environment to what it was
-    -- at the 'mask' call. See "Control.Exception"'s 'Control.Exception.mask'.
-    mask :: ((forall a. m a -> m a) -> m b) -> m b
+  -- | Runs an action with asynchronous exceptions diabled. The action is
+  -- provided a method for restoring the async. environment to what it was
+  -- at the 'mask' call. See "Control.Exception"'s 'Control.Exception.mask'.
+  mask :: ((forall a. m a -> m a) -> m b) -> m b
 
 instance MonadException IO where
-    throwM = ControlException.throwIO
-    catch = ControlException.catch
-    mask = ControlException.mask
+  throwM = ControlException.throwIO
+  catch = ControlException.catch
+  mask = ControlException.mask
 
--- Support for other transformers
-instance MonadException m => MonadException (LazyState.StateT s m) where
-    throwM e = lift $ throwM e
-    catch = LazyState.liftCatch catch
-    mask a = LazyState.StateT $ \s ->
-        mask $ \u -> LazyState.runStateT (a $ q u) s
-      where
-        q u b = LazyState.StateT $ \s -> u $ LazyState.runStateT b s
+instance MonadException m => MonadException (LazyS.StateT s m) where
+  throwM e = lift $ throwM e
+  catch = LazyS.liftCatch catch
+  mask a = LazyS.StateT $ \s -> mask $ \u -> LazyS.runStateT (a $ q u) s
+    where q u b = LazyS.StateT $ \s -> u $ LazyS.runStateT b s
+
+instance MonadException m => MonadException (StrictS.StateT s m) where
+  throwM e = lift $ throwM e
+  catch = StrictS.liftCatch catch
+  mask a = StrictS.StateT $ \s -> mask $ \u -> StrictS.runStateT (a $ q u) s
+    where q u b = StrictS.StateT $ \s -> u $ StrictS.runStateT b s
+
+instance MonadException m => MonadException (ReaderT r m) where
+  throwM e = lift $ throwM e
+  catch (ReaderT m) c = ReaderT $ \r -> m r `catch` \e -> runReaderT (c e) r
+  mask a = ReaderT $ \e -> mask $ \u -> Reader.runReaderT (a $ q u) e
+    where q u b = ReaderT $ \e -> u $ runReaderT b e
+
+instance (MonadException m, Monoid w) => MonadException (StrictW.WriterT w m) where
+  throwM e = lift $ throwM e
+  catch (StrictW.WriterT m) h = StrictW.WriterT $ m `catch ` \e -> StrictW.runWriterT (h e)
+  mask a = StrictW.WriterT $ mask $ \u -> StrictW.runWriterT (a $ q u)
+    where q u b = StrictW.WriterT $ u (StrictW.runWriterT b)
+
+instance (MonadException m, Monoid w) => MonadException (LazyW.WriterT w m) where
+  throwM e = lift $ throwM e
+  catch (LazyW.WriterT m) h = LazyW.WriterT $ m `catch ` \e -> LazyW.runWriterT (h e)
+  mask a = LazyW.WriterT $ mask $ \u -> LazyW.runWriterT (a $ q u)
+    where q u b = LazyW.WriterT $ u (LazyW.runWriterT b)
+
 
 
 -- $transformer
@@ -158,7 +183,6 @@ instance Monad m => MonadPlus (ExceptionT m) where
     Left _ -> n
     Right a -> return (Right a)
 
-
 instance MonadTrans ExceptionT where
   lift m = ExceptionT $ do
     a <- m
@@ -188,6 +212,29 @@ instance MonadState s m => MonadState s (ExceptionT m) where
 instance MonadReader e m => MonadReader e (ExceptionT m) where
   ask = lift ask
   local f (ExceptionT m) = ExceptionT (local f m)
+
+instance MonadWriter w m => MonadWriter w (ExceptionT m) where
+  tell = lift . tell
+  listen = mapExceptionT $ \ m -> do
+    (a, w) <- listen m
+    return $! fmap (\ r -> (r, w)) a
+  pass = mapExceptionT $ \ m -> pass $ do
+    a <- m
+    return $! case a of
+        Left  l      -> (Left  l, id)
+        Right (r, f) -> (Right r, f)
+
+#if MIN_VERSION_mtl(2,1,0)
+  writer aw = ExceptionT (Right `liftM` writer aw)
+#endif
+
+-- | Map the unwrapped computation using the given function.
+--
+-- * @'runErrorT' ('mapErrorT' f m) = f ('runErrorT' m@)
+mapExceptionT :: (m (Either SomeException a) -> n (Either SomeException b))
+          -> ExceptionT m a
+          -> ExceptionT n b
+mapExceptionT f m = ExceptionT $ f (runExceptionT m)
 
 -- $utilities
 -- These functions follow those from "Control.Exception", except that they are
