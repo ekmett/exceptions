@@ -69,17 +69,17 @@ import Data.Traversable (Traversable)
 -- $mtl
 -- The mtl style typeclass
 
-class (Monad m) => MonadException m where
+class Monad m => MonadException m where
     -- | Throw an exception. Note that this throws when this action is run in
     -- the monad /@m@/, not when it is applied. It is a generalization of
     -- "Control.Exception"'s 'Control.Exception.throwIO'.
-    throwM :: (Exception e) => e -> m a
+    throwM :: Exception e => e -> m a
 
     -- | Provide a handler for exceptions thrown during execution of the first
     -- action. Note that type of the type of the argument to the handler will
     -- constrain which exceptions are caught. See "Control.Exception"'s
     -- 'Control.Exception.catch'.
-    catch :: (Exception e) => m a -> (e -> m a) -> m a
+    catch :: Exception e => m a -> (e -> m a) -> m a
 
     -- | Runs an action with asynchronous exceptions diabled. The action is
     -- provided a method for restoring the async. environment to what it was
@@ -92,7 +92,7 @@ instance MonadException IO where
     mask = ControlException.mask
 
 -- Support for other transformers
-instance (MonadException m) => MonadException (LazyState.StateT s m) where
+instance MonadException m => MonadException (LazyState.StateT s m) where
     throwM e = lift $ throwM e
     catch = LazyState.liftCatch catch
     mask a = LazyState.StateT $ \s ->
@@ -115,10 +115,10 @@ newtype ExceptionT m a =
             Monad, MonadPlus, MonadFix, MonadTrans, MonadIO)
 #endif
 
-runExceptionT :: (Monad m) => ExceptionT m a -> m (Either SomeException a)
+runExceptionT :: Monad m => ExceptionT m a -> m (Either SomeException a)
 runExceptionT = liftM (left unWrapException) . Error.runErrorT . unEx
 
-instance (Monad m) => MonadException (ExceptionT m) where
+instance Monad m => MonadException (ExceptionT m) where
     throwM = ExceptionT . Error.throwError . WrapException . toException
     catch a c = ExceptionT $ unEx a `Error.catchError`
         (\e -> maybe (Error.throwError e) (unEx . c)
@@ -138,13 +138,13 @@ instance Error.Error WrappedException where
 
 -- | Catches all exceptions, and somewhat defeats the purpose of the extensible
 -- exception system. Use sparingly.
-catchAll :: (MonadException m) => m a -> (SomeException -> m a) -> m a
+catchAll :: MonadException m => m a -> (SomeException -> m a) -> m a
 catchAll = catch
 
 -- | Catch all 'IOError' (eqv. 'IOException') exceptions. Still somewhat too
 -- general, but better than using 'catchAll'. See 'catchIf' for an easy way
 -- of catching specific 'IOError's based on the predicates in "System.IO.Error".
-catchIOError :: (MonadException m) => m a -> (IOError -> m a) -> m a
+catchIOError :: MonadException m => m a -> (IOError -> m a) -> m a
 catchIOError = catch
 
 -- | Catch exceptions only if they pass some predicate. Often useful with the
@@ -161,7 +161,7 @@ catchJust f a b = a `catch` (\e -> maybe (throwM e) b $ f e)
 
 -- | Run an action only if an exception is thrown in the main action. The
 -- exception is not caught, simply rethrown.
-onException :: (MonadException m) => m a -> m b -> m a
+onException :: MonadException m => m a -> m b -> m a
 onException action handler = action `catchAll` (\e -> handler >> throwM e)
 
 -- | Generalized abstracted pattern of safe resource acquisition and release
@@ -171,7 +171,7 @@ onException action handler = action `catchAll` (\e -> handler >> throwM e)
 --
 -- If an exception occurs during the use, the release still happens before the
 -- exception is rethrown.
-bracket :: (MonadException m) => m a -> (a -> m b) -> (a -> m c) -> m c
+bracket :: MonadException m => m a -> (a -> m b) -> (a -> m c) -> m c
 bracket acquire release use = mask $ \unmasked -> do
     resource <- acquire
     result <- unmasked (use resource) `onException` release resource
@@ -180,10 +180,10 @@ bracket acquire release use = mask $ \unmasked -> do
 
 -- | Version of 'bracket' without any value being passed to the second and
 -- third actions.
-bracket_ :: (MonadException m) => m a -> m b -> m c -> m c
+bracket_ :: MonadException m => m a -> m b -> m c -> m c
 bracket_ before after action = bracket before (const after) (const action)
 
 -- | Perform an action with a finalizer action that is run, even if an
 -- exception occurs.
-finally :: (MonadException m) => m a -> m b -> m a
+finally :: MonadException m => m a -> m b -> m a
 finally action finalizer = bracket_ (return ()) finalizer action
