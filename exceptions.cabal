@@ -10,7 +10,7 @@ stability:     provisional
 homepage:      http://github.com/ekmett/exceptions/
 bug-reports:   http://github.com/ekmett/exceptions/issues
 copyright:     Copyright (C) 2013 Edward A. Kmett
-               Copyright (C) 2012 Google, Inc.
+               Copyright (C) 2012 Google Inc.
 build-type:    Simple
 tested-with:   GHC == 7.4.1, GHC == 7.6.1
 synopsis:      Extensible optionally-pure exceptions
