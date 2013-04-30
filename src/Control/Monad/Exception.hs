@@ -84,8 +84,7 @@ import qualified Control.Monad.Trans.State.Strict as StrictS
 import qualified Control.Monad.Trans.Writer.Lazy as LazyW
 import qualified Control.Monad.Trans.Writer.Strict as StrictW
 import Control.Monad.Reader as Reader
-import Control.Monad.Writer
-import Control.Monad.State
+import Control.Monad.RWS
 import Data.Foldable
 import Data.Traversable as Traversable
 
@@ -242,10 +241,12 @@ instance MonadWriter w m => MonadWriter w (ExceptionT m) where
     return $! case a of
         Left  l      -> (Left  l, id)
         Right (r, f) -> (Right r, f)
-
 #if MIN_VERSION_mtl(2,1,0)
   writer aw = ExceptionT (Right `liftM` writer aw)
 #endif
+
+instance MonadRWS r w s m => MonadRWS r w s (ExceptionT m)
+
 
 -- | Map the unwrapped computation using the given function.
 --
