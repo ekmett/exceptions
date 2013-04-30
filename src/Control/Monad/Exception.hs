@@ -53,18 +53,24 @@ limitations under the License.
 module Control.Monad.Exception (
     -- * Typeclass
     -- $mtl
-    MonadException(..),
+    MonadException(..)
 
     -- * Transformer
     -- $transformer
-    ExceptionT, runExceptionT,
+  , ExceptionT
+  , runExceptionT
+  , mapExceptionT
 
     -- * Utilities
     -- $utilities
-    catchAll, catchIOError, catchJust, catchIf,
-    onException,
-    bracket, bracket_,
-    finally,
+  , catchAll
+  , catchIOError
+  , catchJust
+  , catchIf
+  , onException
+  , bracket
+  , bracket_
+  , finally
   ) where
 
 import Prelude hiding (catch)
