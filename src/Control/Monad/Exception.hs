@@ -98,18 +98,18 @@ import Data.Traversable as Traversable
 class Monad m => MonadException m where
   -- | Throw an exception. Note that this throws when this action is run in
   -- the monad /@m@/, not when it is applied. It is a generalization of
-  -- "Control.Exception"'s 'Control.Exception.throwIO'.
+  -- "Control.Exception"'s 'ControlException.throwIO'.
   throwM :: Exception e => e -> m a
 
   -- | Provide a handler for exceptions thrown during execution of the first
   -- action. Note that type of the type of the argument to the handler will
   -- constrain which exceptions are caught. See "Control.Exception"'s
-  -- 'Control.Exception.catch'.
+  -- 'ControlException.catch'.
   catch :: Exception e => m a -> (e -> m a) -> m a
 
   -- | Runs an action with asynchronous exceptions diabled. The action is
   -- provided a method for restoring the async. environment to what it was
-  -- at the 'mask' call. See "Control.Exception"'s 'Control.Exception.mask'.
+  -- at the 'mask' call. See "Control.Exception"'s 'ControlException.mask'.
   mask :: ((forall a. m a -> m a) -> m b) -> m b
 
 instance MonadException IO where
@@ -298,7 +298,7 @@ catchJust :: (MonadException m, Exception e) =>
 catchJust f a b = a `catch` \e -> maybe (throwM e) b $ f e
 
 -- | Similar to 'catch', but returns an 'Either' result. See "Control.Exception"'s
--- 'Control.Exception.try'.
+-- 'ControlException.try'.
 try :: (MonadException m, Exception e) => m a -> m (Either e a)
 try a = catch (Right `liftM` a) (return . Left)
 
