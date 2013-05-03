@@ -53,13 +53,13 @@ limitations under the License.
 module Control.Monad.Exception (
     -- * Typeclass
     -- $mtl
-    MonadException(..)
+    MonadCatch(..)
 
     -- * Transformer
     -- $transformer
-  , ExceptionT
-  , runExceptionT
-  , mapExceptionT
+  , CatchT
+  , runCatchT
+  , mapCatchT
 
     -- * Utilities
     -- $utilities
@@ -95,7 +95,7 @@ import Data.Traversable as Traversable
 -- The mtl style typeclass
 ------------------------------------------------------------------------------
 
-class Monad m => MonadException m where
+class Monad m => MonadCatch m where
   -- | Throw an exception. Note that this throws when this action is run in
   -- the monad /@m@/, not when it is applied. It is a generalization of
   -- "Control.Exception"'s 'Control.Exception.throwIO'.
@@ -112,54 +112,54 @@ class Monad m => MonadException m where
   -- at the 'mask' call. See "Control.Exception"'s 'Control.Exception.mask'.
   mask :: ((forall a. m a -> m a) -> m b) -> m b
 
-instance MonadException IO where
+instance MonadCatch IO where
   throwM = ControlException.throwIO
   catch = ControlException.catch
   mask = ControlException.mask
 
-instance MonadException m => MonadException (IdentityT m) where
+instance MonadCatch m => MonadCatch (IdentityT m) where
   throwM e = lift $ throwM e
   catch (IdentityT m) f = IdentityT (catch m (runIdentityT . f))
   mask a = IdentityT $ mask $ \u -> runIdentityT (a $ q u)
     where q u = IdentityT . u . runIdentityT
 
-instance MonadException m => MonadException (LazyS.StateT s m) where
+instance MonadCatch m => MonadCatch (LazyS.StateT s m) where
   throwM e = lift $ throwM e
   catch = LazyS.liftCatch catch
   mask a = LazyS.StateT $ \s -> mask $ \u -> LazyS.runStateT (a $ q u) s
     where q u (LazyS.StateT b) = LazyS.StateT (u . b)
 
-instance MonadException m => MonadException (StrictS.StateT s m) where
+instance MonadCatch m => MonadCatch (StrictS.StateT s m) where
   throwM e = lift $ throwM e
   catch = StrictS.liftCatch catch
   mask a = StrictS.StateT $ \s -> mask $ \u -> StrictS.runStateT (a $ q u) s
     where q u (StrictS.StateT b) = StrictS.StateT (u . b)
 
-instance MonadException m => MonadException (ReaderT r m) where
+instance MonadCatch m => MonadCatch (ReaderT r m) where
   throwM e = lift $ throwM e
   catch (ReaderT m) c = ReaderT $ \r -> m r `catch` \e -> runReaderT (c e) r
   mask a = ReaderT $ \e -> mask $ \u -> Reader.runReaderT (a $ q u) e
     where q u (ReaderT b) = ReaderT (u . b)
 
-instance (MonadException m, Monoid w) => MonadException (StrictW.WriterT w m) where
+instance (MonadCatch m, Monoid w) => MonadCatch (StrictW.WriterT w m) where
   throwM e = lift $ throwM e
   catch (StrictW.WriterT m) h = StrictW.WriterT $ m `catch ` \e -> StrictW.runWriterT (h e)
   mask a = StrictW.WriterT $ mask $ \u -> StrictW.runWriterT (a $ q u)
     where q u b = StrictW.WriterT $ u (StrictW.runWriterT b)
 
-instance (MonadException m, Monoid w) => MonadException (LazyW.WriterT w m) where
+instance (MonadCatch m, Monoid w) => MonadCatch (LazyW.WriterT w m) where
   throwM e = lift $ throwM e
   catch (LazyW.WriterT m) h = LazyW.WriterT $ m `catch ` \e -> LazyW.runWriterT (h e)
   mask a = LazyW.WriterT $ mask $ \u -> LazyW.runWriterT (a $ q u)
     where q u b = LazyW.WriterT $ u (LazyW.runWriterT b)
 
-instance (MonadException m, Monoid w) => MonadException (LazyRWS.RWST r w s m) where
+instance (MonadCatch m, Monoid w) => MonadCatch (LazyRWS.RWST r w s m) where
   throwM e = lift $ throwM e
   catch (LazyRWS.RWST m) h = LazyRWS.RWST $ \r s -> m r s `catch` \e -> LazyRWS.runRWST (h e) r s
   mask a = LazyRWS.RWST $ \r s -> mask $ \u -> LazyRWS.runRWST (a $ q u) r s
     where q u (LazyRWS.RWST b) = LazyRWS.RWST $ \ r s -> u (b r s)
 
-instance (MonadException m, Monoid w) => MonadException (StrictRWS.RWST r w s m) where
+instance (MonadCatch m, Monoid w) => MonadCatch (StrictRWS.RWST r w s m) where
   throwM e = lift $ throwM e
   catch (StrictRWS.RWST m) h = StrictRWS.RWST $ \r s -> m r s `catch` \e -> StrictRWS.runRWST (h e) r s
   mask a = StrictRWS.RWST $ \r s -> mask $ \u -> StrictRWS.runRWST (a $ q u) r s
@@ -170,141 +170,145 @@ instance (MonadException m, Monoid w) => MonadException (StrictRWS.RWST r w s m)
 -- The @transformers@-style monad transfomer
 ------------------------------------------------------------------------------
 
--- | Add exception abilities to a monad.
-newtype ExceptionT m a = ExceptionT { runExceptionT :: m (Either SomeException a) }
+-- | Add 'Exception' handling abilities to a 'Monad'.
+newtype CatchT m a = CatchT { runCatchT :: m (Either SomeException a) }
 
-instance Monad m => Functor (ExceptionT m) where
-  fmap f (ExceptionT m) = ExceptionT (liftM (fmap f) m)
+type Catch = CatchT Identity
 
-instance Monad m => Applicative (ExceptionT m) where
-  pure a = ExceptionT (return (Right a))
+runCatch :: Catch a -> Either SomeException a
+runCatch = runIdentity . runCatchT
+
+instance Monad m => Functor (CatchT m) where
+  fmap f (CatchT m) = CatchT (liftM (fmap f) m)
+
+instance Monad m => Applicative (CatchT m) where
+  pure a = CatchT (return (Right a))
   (<*>) = ap
 
-instance Monad m => Monad (ExceptionT m) where
-  return a = ExceptionT (return (Right a))
-  ExceptionT m >>= k = ExceptionT $ m >>= \ea -> case ea of
+instance Monad m => Monad (CatchT m) where
+  return a = CatchT (return (Right a))
+  CatchT m >>= k = CatchT $ m >>= \ea -> case ea of
     Left e -> return (Left e)
-    Right a -> runExceptionT (k a)
-  fail = ExceptionT . return . Left . toException . userError
+    Right a -> runCatchT (k a)
+  fail = CatchT . return . Left . toException . userError
 
-instance MonadFix m => MonadFix (ExceptionT m) where
-  mfix f = ExceptionT $ mfix $ \a -> runExceptionT $ f $ case a of
+instance MonadFix m => MonadFix (CatchT m) where
+  mfix f = CatchT $ mfix $ \a -> runCatchT $ f $ case a of
     Right r -> r
     _       -> error "empty mfix argument"
 
-instance Foldable m => Foldable (ExceptionT m) where
-  foldMap f (ExceptionT m) = foldMap (foldMapEither f) m where
+instance Foldable m => Foldable (CatchT m) where
+  foldMap f (CatchT m) = foldMap (foldMapEither f) m where
     foldMapEither g (Right a) = g a
     foldMapEither _ (Left _) = mempty
 
-instance (Monad m, Traversable m) => Traversable (ExceptionT m) where
-  traverse f (ExceptionT m) = ExceptionT <$> Traversable.traverse (traverseEither f) m where
+instance (Monad m, Traversable m) => Traversable (CatchT m) where
+  traverse f (CatchT m) = CatchT <$> Traversable.traverse (traverseEither f) m where
     traverseEither g (Right a) = Right <$> g a
     traverseEither _ (Left e) = pure (Left e)
 
-instance Monad m => Alternative (ExceptionT m) where
+instance Monad m => Alternative (CatchT m) where
   empty = mzero
   (<|>) = mplus
 
-instance Monad m => MonadPlus (ExceptionT m) where
-  mzero = ExceptionT $ return $ Left $ toException $ userError ""
-  mplus (ExceptionT m) (ExceptionT n) = ExceptionT $ m >>= \ea -> case ea of
+instance Monad m => MonadPlus (CatchT m) where
+  mzero = CatchT $ return $ Left $ toException $ userError ""
+  mplus (CatchT m) (CatchT n) = CatchT $ m >>= \ea -> case ea of
     Left _ -> n
     Right a -> return (Right a)
 
-instance MonadTrans ExceptionT where
-  lift m = ExceptionT $ do
+instance MonadTrans CatchT where
+  lift m = CatchT $ do
     a <- m
     return $ Right a
 
-instance MonadIO m => MonadIO (ExceptionT m) where
-  liftIO m = ExceptionT $ do
+instance MonadIO m => MonadIO (CatchT m) where
+  liftIO m = CatchT $ do
     a <- liftIO m
     return $ Right a
 
-instance Monad m => MonadException (ExceptionT m) where
-  throwM = ExceptionT . return . Left . toException
-  catch (ExceptionT m) c = ExceptionT $ m >>= \ea -> case ea of
+instance Monad m => MonadCatch (CatchT m) where
+  throwM = CatchT . return . Left . toException
+  catch (CatchT m) c = CatchT $ m >>= \ea -> case ea of
     Left e -> case fromException e of
-      Just e' -> runExceptionT (c e')
+      Just e' -> runCatchT (c e')
       Nothing -> return (Left e)
     Right a -> return (Right a)
   mask a = a id
 
-instance MonadState s m => MonadState s (ExceptionT m) where
+instance MonadState s m => MonadState s (CatchT m) where
   get = lift get
   put = lift . put
 #if MIN_VERSION_mtl(2,1,0)
   state = lift . state
 #endif
 
-instance MonadReader e m => MonadReader e (ExceptionT m) where
+instance MonadReader e m => MonadReader e (CatchT m) where
   ask = lift ask
-  local f (ExceptionT m) = ExceptionT (local f m)
+  local f (CatchT m) = CatchT (local f m)
 
-instance MonadWriter w m => MonadWriter w (ExceptionT m) where
+instance MonadWriter w m => MonadWriter w (CatchT m) where
   tell = lift . tell
-  listen = mapExceptionT $ \ m -> do
+  listen = mapCatchT $ \ m -> do
     (a, w) <- listen m
     return $! fmap (\ r -> (r, w)) a
-  pass = mapExceptionT $ \ m -> pass $ do
+  pass = mapCatchT $ \ m -> pass $ do
     a <- m
     return $! case a of
         Left  l      -> (Left  l, id)
         Right (r, f) -> (Right r, f)
 #if MIN_VERSION_mtl(2,1,0)
-  writer aw = ExceptionT (Right `liftM` writer aw)
+  writer aw = CatchT (Right `liftM` writer aw)
 #endif
 
-instance MonadRWS r w s m => MonadRWS r w s (ExceptionT m)
-
+instance MonadRWS r w s m => MonadRWS r w s (CatchT m)
 
 -- | Map the unwrapped computation using the given function.
 --
 -- * @'runErrorT' ('mapErrorT' f m) = f ('runErrorT' m@)
-mapExceptionT :: (m (Either SomeException a) -> n (Either SomeException b))
-          -> ExceptionT m a
-          -> ExceptionT n b
-mapExceptionT f m = ExceptionT $ f (runExceptionT m)
+mapCatchT :: (m (Either SomeException a) -> n (Either SomeException b))
+          -> CatchT m a
+          -> CatchT n b
+mapCatchT f m = CatchT $ f (runCatchT m)
 
 ------------------------------------------------------------------------------
 -- $utilities
 -- These functions follow those from "Control.Exception", except that they are
--- based on methods from the 'MonadException' typeclass. See
+-- based on methods from the 'MonadCatch' typeclass. See
 -- "Control.Exception" for API usage.
 ------------------------------------------------------------------------------
 
 -- | Catches all exceptions, and somewhat defeats the purpose of the extensible
 -- exception system. Use sparingly.
-catchAll :: MonadException m => m a -> (SomeException -> m a) -> m a
+catchAll :: MonadCatch m => m a -> (SomeException -> m a) -> m a
 catchAll = catch
 
 -- | Catch all 'IOError' (eqv. 'IOException') exceptions. Still somewhat too
 -- general, but better than using 'catchAll'. See 'catchIf' for an easy way
 -- of catching specific 'IOError's based on the predicates in "System.IO.Error".
-catchIOError :: MonadException m => m a -> (IOError -> m a) -> m a
+catchIOError :: MonadCatch m => m a -> (IOError -> m a) -> m a
 catchIOError = catch
 
 -- | Catch exceptions only if they pass some predicate. Often useful with the
 -- predicates for testing 'IOError' values in "System.IO.Error".
-catchIf :: (MonadException m, Exception e) =>
+catchIf :: (MonadCatch m, Exception e) =>
     (e -> Bool) -> m a -> (e -> m a) -> m a
 catchIf f a b = a `catch` \e -> if f e then b e else throwM e
 
 -- | A more generalized way of determining which exceptions to catch at
 -- run time.
-catchJust :: (MonadException m, Exception e) =>
+catchJust :: (MonadCatch m, Exception e) =>
     (e -> Maybe b) -> m a -> (b -> m a) -> m a
 catchJust f a b = a `catch` \e -> maybe (throwM e) b $ f e
 
 -- | Similar to 'catch', but returns an 'Either' result. See "Control.Exception"'s
 -- 'Control.Exception.try'.
-try :: (MonadException m, Exception e) => m a -> m (Either e a)
+try :: (MonadCatch m, Exception e) => m a -> m (Either e a)
 try a = catch (Right `liftM` a) (return . Left)
 
 -- | Run an action only if an exception is thrown in the main action. The
 -- exception is not caught, simply rethrown.
-onException :: MonadException m => m a -> m b -> m a
+onException :: MonadCatch m => m a -> m b -> m a
 onException action handler = action `catchAll` \e -> handler >> throwM e
 
 -- | Generalized abstracted pattern of safe resource acquisition and release
@@ -314,7 +318,7 @@ onException action handler = action `catchAll` \e -> handler >> throwM e
 --
 -- If an exception occurs during the use, the release still happens before the
 -- exception is rethrown.
-bracket :: MonadException m => m a -> (a -> m b) -> (a -> m c) -> m c
+bracket :: MonadCatch m => m a -> (a -> m b) -> (a -> m c) -> m c
 bracket acquire release use = mask $ \unmasked -> do
     resource <- acquire
     result <- unmasked (use resource) `onException` release resource
@@ -323,10 +327,10 @@ bracket acquire release use = mask $ \unmasked -> do
 
 -- | Version of 'bracket' without any value being passed to the second and
 -- third actions.
-bracket_ :: MonadException m => m a -> m b -> m c -> m c
+bracket_ :: MonadCatch m => m a -> m b -> m c -> m c
 bracket_ before after action = bracket before (const after) (const action)
 
 -- | Perform an action with a finalizer action that is run, even if an
 -- exception occurs.
-finally :: MonadException m => m a -> m b -> m a
+finally :: MonadCatch m => m a -> m b -> m a
 finally action finalizer = bracket_ (return ()) finalizer action
