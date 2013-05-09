@@ -15,6 +15,7 @@ limitations under the License.
 -}
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -67,6 +68,7 @@ module Control.Monad.Exception (
   , catchIOError
   , catchJust
   , catchIf
+  , Handler(..), catches
   , try
   , tryJust
   , onException
@@ -75,7 +77,7 @@ module Control.Monad.Exception (
   , finally
   ) where
 
-import Prelude hiding (catch)
+import Prelude hiding (catch, foldr)
 import Control.Applicative
 import Control.Exception (Exception(..), SomeException(..))
 import qualified Control.Exception as ControlException
@@ -308,6 +310,20 @@ try a = catch (Right `liftM` a) (return . Left)
 tryJust :: (MonadException m, Exception e) =>
     (e -> Maybe b) -> m a -> m (Either b a)
 tryJust f a = catch (Right `liftM` a) (\e -> maybe (throwM e) (return . Left) (f e))
+
+-- | Generalized version of 'ControlException.Handler'
+data Handler m a = forall e . ControlException.Exception e => Handler (e -> m a)
+
+instance Monad m => Functor (Handler m) where
+  fmap f (Handler h) = Handler (liftM f . h)
+
+-- | Catches different sorts of exceptions. See "Control.Exception"'s 'ControlException.catches'
+catches :: (Foldable f, MonadException m) => m a -> f (Handler m a) -> m a
+catches a hs = a `catch` handler
+  where
+    handler e = foldr probe (throwM e) hs
+      where
+        probe (Handler h) xs = maybe xs h (ControlException.fromException e)
 
 -- | Run an action only if an exception is thrown in the main action. The
 -- exception is not caught, simply rethrown.
