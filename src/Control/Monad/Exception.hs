@@ -69,6 +69,8 @@ module Control.Monad.Exception (
   , catchJust
   , catchIf
   , Handler(..), catches
+  , handle
+  , handleJust
   , try
   , tryJust
   , onException
@@ -299,6 +301,16 @@ catchIf f a b = a `catch` \e -> if f e then b e else throwM e
 catchJust :: (MonadException m, Exception e) =>
     (e -> Maybe b) -> m a -> (b -> m a) -> m a
 catchJust f a b = a `catch` \e -> maybe (throwM e) b $ f e
+
+-- | Flipped 'catch'. See "Control.Exception"'s 'ControlException.handle'.
+handle :: (MonadException m, Exception e) => (e -> m a) -> m a -> m a
+handle = flip catch
+{-# INLINE handle #-}
+
+-- | Flipped 'catchJust'. See "Control.Exception"'s 'ControlException.handleJust'.
+handleJust :: (MonadException m, Exception e) => (e -> Maybe b) -> (b -> m a) -> m a -> m a
+handleJust f = flip (catchJust f)
+{-# INLINE handleJust #-}
 
 -- | Similar to 'catch', but returns an 'Either' result. See "Control.Exception"'s
 -- 'ControlException.try'.
