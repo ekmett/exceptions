@@ -77,6 +77,7 @@ module Control.Monad.Exception (
   , bracket
   , bracket_
   , finally
+  , bracketOnError
   ) where
 
 import Prelude hiding (catch, foldr)
@@ -365,3 +366,10 @@ bracket_ before after action = bracket before (const after) (const action)
 -- exception occurs.
 finally :: MonadException m => m a -> m b -> m a
 finally action finalizer = bracket_ (return ()) finalizer action
+
+-- | Like 'bracket', but only performs the final action if there was an
+-- exception raised by the in-between computation.
+bracketOnError :: MonadException m => m a -> (a -> m b) -> (a -> m c) -> m c
+bracketOnError acquire release use = mask $ \unmasked -> do
+    resource <- acquire
+    unmasked (use resource) `onException` release resource
