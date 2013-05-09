@@ -344,7 +344,7 @@ onException :: MonadException m => m a -> m b -> m a
 onException action handler = action `catchAll` \e -> handler >> throwM e
 
 -- | Generalized abstracted pattern of safe resource acquisition and release
--- in the face of exceptions. The first action \"aquires\" some value, which
+-- in the face of exceptions. The first action \"acquires\" some value, which
 -- is \"released\" by the second action at the end. The third action \"uses\"
 -- the value and its result is the result of the 'bracket'.
 --
