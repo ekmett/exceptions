@@ -68,6 +68,7 @@ module Control.Monad.Exception (
   , catchJust
   , catchIf
   , try
+  , tryJust
   , onException
   , bracket
   , bracket_
@@ -301,6 +302,12 @@ catchJust f a b = a `catch` \e -> maybe (throwM e) b $ f e
 -- 'ControlException.try'.
 try :: (MonadException m, Exception e) => m a -> m (Either e a)
 try a = catch (Right `liftM` a) (return . Left)
+
+-- | A variant of 'try' that takes an exception predicate to select
+-- which exceptions are caught. See "Control.Exception"'s 'ControlException.tryJust'
+tryJust :: (MonadException m, Exception e) =>
+    (e -> Maybe b) -> m a -> m (Either b a)
+tryJust f a = catch (Right `liftM` a) (\e -> maybe (throwM e) (return . Left) (f e))
 
 -- | Run an action only if an exception is thrown in the main action. The
 -- exception is not caught, simply rethrown.
