@@ -58,8 +58,8 @@ module Control.Monad.Exception (
 
     -- * Transformer
     -- $transformer
-  , CatchT, Catch
-  , runCatchT, runCatch
+  , CatchT(..), Catch
+  , runCatch
   , mapCatchT
 
     -- * Utilities
