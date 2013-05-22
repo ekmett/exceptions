@@ -57,8 +57,8 @@ module Control.Monad.Exception (
 
     -- * Transformer
     -- $transformer
-  , CatchT
-  , runCatchT
+  , CatchT, Catch
+  , runCatchT, runCatch
   , mapCatchT
 
     -- * Utilities
@@ -74,7 +74,6 @@ module Control.Monad.Exception (
   , finally
   ) where
 
-import Prelude hiding (catch)
 import Control.Applicative
 import Control.Exception (Exception(..), SomeException(..))
 import qualified Control.Exception as ControlException
@@ -88,7 +87,9 @@ import Control.Monad.Trans.Identity
 import Control.Monad.Reader as Reader
 import Control.Monad.RWS
 import Data.Foldable
+import Data.Functor.Identity
 import Data.Traversable as Traversable
+import Prelude hiding (catch)
 
 ------------------------------------------------------------------------------
 -- $mtl
@@ -98,18 +99,18 @@ import Data.Traversable as Traversable
 class Monad m => MonadCatch m where
   -- | Throw an exception. Note that this throws when this action is run in
   -- the monad /@m@/, not when it is applied. It is a generalization of
-  -- "Control.Exception"'s 'Control.Exception.throwIO'.
+  -- "Control.Exception"'s 'ControlException.throwIO'.
   throwM :: Exception e => e -> m a
 
   -- | Provide a handler for exceptions thrown during execution of the first
   -- action. Note that type of the type of the argument to the handler will
   -- constrain which exceptions are caught. See "Control.Exception"'s
-  -- 'Control.Exception.catch'.
+  -- 'ControlException.catch'.
   catch :: Exception e => m a -> (e -> m a) -> m a
 
   -- | Runs an action with asynchronous exceptions diabled. The action is
   -- provided a method for restoring the async. environment to what it was
-  -- at the 'mask' call. See "Control.Exception"'s 'Control.Exception.mask'.
+  -- at the 'mask' call. See "Control.Exception"'s 'ControlException.mask'.
   mask :: ((forall a. m a -> m a) -> m b) -> m b
 
 instance MonadCatch IO where
