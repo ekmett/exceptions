@@ -30,10 +30,6 @@ limitations under the License.
 #define MIN_VERSION_mtl(x,y,z) 1
 #endif
 
-#ifndef MIN_VERSION_base
-#define MIN_VERSION_base(x,y,z) 1
-#endif
-
 --------------------------------------------------------------------
 -- |
 -- Copyright :  (c) Edward Kmett 2013, (c) Google Inc. 2012
@@ -88,11 +84,7 @@ module Control.Monad.Catch (
   , SomeException(..)
   ) where
 
-#if MIN_VERSION_base(0,4,6)
-import Prelude hiding (foldr)
-#else
 import Prelude hiding (catch, foldr)
-#endif
 
 import Control.Applicative
 import Control.Exception (Exception(..), SomeException(..))
