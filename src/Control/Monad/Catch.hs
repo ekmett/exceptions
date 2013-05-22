@@ -51,7 +51,8 @@ limitations under the License.
 -- asynchronous exceptions by including 'mask' in the typeclass. Note that the
 -- extensible extensions feature relies the RankNTypes language extension.
 --------------------------------------------------------------------
-module Control.Monad.Exception (
+
+module Control.Monad.Catch (
     -- * Typeclass
     -- $mtl
     MonadCatch(..)
@@ -78,7 +79,12 @@ module Control.Monad.Exception (
   , bracket_
   , finally
   , bracketOnError
+    -- * Re-exports from Control.Exception
+  , Exception(..)
+  , SomeException(..)
   ) where
+
+import Prelude hiding (catch, foldr)
 
 import Control.Applicative
 import Control.Exception (Exception(..), SomeException(..))
@@ -95,7 +101,6 @@ import Control.Monad.RWS
 import Data.Foldable
 import Data.Functor.Identity
 import Data.Traversable as Traversable
-import Prelude hiding (catch, foldr)
 
 ------------------------------------------------------------------------------
 -- $mtl
@@ -104,7 +109,7 @@ import Prelude hiding (catch, foldr)
 
 class Monad m => MonadCatch m where
   -- | Throw an exception. Note that this throws when this action is run in
-  -- the monad /@m@/, not when it is applied. It is a generalization of
+  -- the monad @m@, not when it is applied. It is a generalization of
   -- "Control.Exception"'s 'ControlException.throwIO'.
   throwM :: Exception e => e -> m a
 
@@ -357,10 +362,10 @@ onException action handler = action `catchAll` \e -> handler >> throwM e
 -- exception is rethrown.
 bracket :: MonadCatch m => m a -> (a -> m b) -> (a -> m c) -> m c
 bracket acquire release use = mask $ \unmasked -> do
-    resource <- acquire
-    result <- unmasked (use resource) `onException` release resource
-    _ <- release resource
-    return result
+  resource <- acquire
+  result <- unmasked (use resource) `onException` release resource
+  _ <- release resource
+  return result
 
 -- | Version of 'bracket' without any value being passed to the second and
 -- third actions.
@@ -376,5 +381,5 @@ finally action finalizer = bracket_ (return ()) finalizer action
 -- exception raised by the in-between computation.
 bracketOnError :: MonadCatch m => m a -> (a -> m b) -> (a -> m c) -> m c
 bracketOnError acquire release use = mask $ \unmasked -> do
-    resource <- acquire
-    unmasked (use resource) `onException` release resource
+  resource <- acquire
+  unmasked (use resource) `onException` release resource
