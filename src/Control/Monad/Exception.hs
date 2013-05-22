@@ -15,6 +15,7 @@ limitations under the License.
 -}
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -67,11 +68,16 @@ module Control.Monad.Exception (
   , catchIOError
   , catchJust
   , catchIf
+  , Handler(..), catches
+  , handle
+  , handleJust
   , try
+  , tryJust
   , onException
   , bracket
   , bracket_
   , finally
+  , bracketOnError
   ) where
 
 import Control.Applicative
@@ -89,7 +95,7 @@ import Control.Monad.RWS
 import Data.Foldable
 import Data.Functor.Identity
 import Data.Traversable as Traversable
-import Prelude hiding (catch)
+import Prelude hiding (catch, foldr)
 
 ------------------------------------------------------------------------------
 -- $mtl
@@ -302,10 +308,40 @@ catchJust :: (MonadCatch m, Exception e) =>
     (e -> Maybe b) -> m a -> (b -> m a) -> m a
 catchJust f a b = a `catch` \e -> maybe (throwM e) b $ f e
 
+-- | Flipped 'catch'. See "Control.Exception"'s 'ControlException.handle'.
+handle :: (MonadCatch m, Exception e) => (e -> m a) -> m a -> m a
+handle = flip catch
+{-# INLINE handle #-}
+
+-- | Flipped 'catchJust'. See "Control.Exception"'s 'ControlException.handleJust'.
+handleJust :: (MonadCatch m, Exception e) => (e -> Maybe b) -> (b -> m a) -> m a -> m a
+handleJust f = flip (catchJust f)
+{-# INLINE handleJust #-}
+
 -- | Similar to 'catch', but returns an 'Either' result. See "Control.Exception"'s
 -- 'Control.Exception.try'.
 try :: (MonadCatch m, Exception e) => m a -> m (Either e a)
 try a = catch (Right `liftM` a) (return . Left)
+
+-- | A variant of 'try' that takes an exception predicate to select
+-- which exceptions are caught. See "Control.Exception"'s 'ControlException.tryJust'
+tryJust :: (MonadCatch m, Exception e) =>
+    (e -> Maybe b) -> m a -> m (Either b a)
+tryJust f a = catch (Right `liftM` a) (\e -> maybe (throwM e) (return . Left) (f e))
+
+-- | Generalized version of 'ControlException.Handler'
+data Handler m a = forall e . ControlException.Exception e => Handler (e -> m a)
+
+instance Monad m => Functor (Handler m) where
+  fmap f (Handler h) = Handler (liftM f . h)
+
+-- | Catches different sorts of exceptions. See "Control.Exception"'s 'ControlException.catches'
+catches :: (Foldable f, MonadCatch m) => m a -> f (Handler m a) -> m a
+catches a hs = a `catch` handler
+  where
+    handler e = foldr probe (throwM e) hs
+      where
+        probe (Handler h) xs = maybe xs h (ControlException.fromException e)
 
 -- | Run an action only if an exception is thrown in the main action. The
 -- exception is not caught, simply rethrown.
@@ -313,7 +349,7 @@ onException :: MonadCatch m => m a -> m b -> m a
 onException action handler = action `catchAll` \e -> handler >> throwM e
 
 -- | Generalized abstracted pattern of safe resource acquisition and release
--- in the face of exceptions. The first action \"aquires\" some value, which
+-- in the face of exceptions. The first action \"acquires\" some value, which
 -- is \"released\" by the second action at the end. The third action \"uses\"
 -- the value and its result is the result of the 'bracket'.
 --
@@ -335,3 +371,10 @@ bracket_ before after action = bracket before (const after) (const action)
 -- exception occurs.
 finally :: MonadCatch m => m a -> m b -> m a
 finally action finalizer = bracket_ (return ()) finalizer action
+
+-- | Like 'bracket', but only performs the final action if there was an
+-- exception raised by the in-between computation.
+bracketOnError :: MonadCatch m => m a -> (a -> m b) -> (a -> m c) -> m c
+bracketOnError acquire release use = mask $ \unmasked -> do
+    resource <- acquire
+    unmasked (use resource) `onException` release resource
