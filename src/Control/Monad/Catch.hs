@@ -55,7 +55,7 @@ limitations under the License.
 -- asynchronous exceptions by including 'mask' in the typeclass. Note that the
 -- extensible extensions feature relies the RankNTypes language extension.
 --------------------------------------------------------------------
-module Control.Monad.Exception (
+module Control.Monad.Catch (
     -- * Typeclass
     -- $mtl
     MonadCatch(..)
