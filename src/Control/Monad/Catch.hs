@@ -117,7 +117,7 @@ import Data.Traversable as Traversable
 
 class Monad m => MonadCatch m where
   -- | Throw an exception. Note that this throws when this action is run in
-  -- the monad /@m@/, not when it is applied. It is a generalization of
+  -- the monad @m@, not when it is applied. It is a generalization of
   -- "Control.Exception"'s 'ControlException.throwIO'.
   throwM :: Exception e => e -> m a
 
