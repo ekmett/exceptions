@@ -33,12 +33,26 @@ source-repository head
 
 library
   build-depends:
-    base                      >= 4.3      && < 5,
-    transformers              >= 0.2      && < 0.4,
-    mtl                       >= 2.0      && < 2.2
+    base                       >= 4.3      && < 5,
+    transformers               >= 0.2      && < 0.4,
+    mtl                        >= 2.0      && < 2.2
 
   exposed-modules:
     Control.Monad.Catch
 
   ghc-options: -Wall -fwarn-tabs -O2
   hs-source-dirs: src
+
+test-suite exceptions-tests
+  main-is: Tests.hs
+  hs-source-dirs: src, tests
+  ghc-options: -Wall -fwarn-tabs
+  type: exitcode-stdio-1.0
+  build-depends:
+    base                       >= 4.3      && < 5,
+    transformers               >= 0.2      && < 0.4,
+    mtl                        >= 2.0      && < 2.2,
+
+    test-framework             >= 0.8      && < 0.9,
+    test-framework-quickcheck2 >= 0.3      && < 0.4,
+    QuickCheck                 >= 2.5      && < 2.6
