@@ -84,7 +84,11 @@ module Control.Monad.Catch (
   , SomeException(..)
   ) where
 
+#if defined(__GLASGOW_HASKELL__) && (__GLASGOW_HASKELL__ >= 706)
+import Prelude hiding (foldr)
+#else
 import Prelude hiding (catch, foldr)
+#endif
 
 import Control.Applicative
 import Control.Exception (Exception(..), SomeException(..))
