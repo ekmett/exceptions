@@ -7,6 +7,7 @@ module Control.Monad.Catch.Tests (tests) where
 
 import Prelude hiding (catch)
 
+import Control.Applicative ((<*>))
 import Data.Data (Data, Typeable)
 
 import Control.Monad.Trans.Identity (IdentityT(..))
@@ -57,13 +58,13 @@ testCatchJust MSpec { mspecRunner } = monadic mspecRunner $ do
     negFailure = throwM (TestException "neg") >> error "testCatchJust neg"
 
 tests :: Test
-tests = testGroup "Control.Monad.Catch.Tests" $ concat
-    [ monadCatchTests
-    , catchJustTests
-    ]
+tests = testGroup "Control.Monad.Catch.Tests" $
+    [ mkMonadCatch
+    , mkCatchJust
+    ] <*> mspecs
   where
     mspecs =
-        [ MSpec "IO" morallyDubiousIOProperty
+        [ MSpec "IO" io
         , MSpec "IdentityT IO" $ io . runIdentityT
         , MSpec "LazyState.StateT IO" $ io . flip LazyState.evalStateT ()
         , MSpec "StrictState.StateT IO" $ io . flip StrictState.evalStateT ()
@@ -81,10 +82,7 @@ tests = testGroup "Control.Monad.Catch.Tests" $ concat
     fromRight (Right a) = a
     io = morallyDubiousIOProperty
 
-    monadCatchTests = map mkMonadCatch mspecs
     mkMonadCatch = mkTestType "MonadCatch" testMonadCatch
-
-    catchJustTests = map mkCatchJust mspecs
     mkCatchJust = mkTestType "catchJust" testCatchJust
 
     mkTestType name test = \spec ->
