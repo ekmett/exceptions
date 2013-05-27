@@ -2,10 +2,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE CPP #-}
 
 module Control.Monad.Catch.Tests (tests) where
 
+#if defined(__GLASGOW_HASKELL__) && (__GLASGOW_HASKELL__ < 706)
 import Prelude hiding (catch)
+#endif
 
 import Control.Applicative ((<*>))
 import Data.Data (Data, Typeable)
