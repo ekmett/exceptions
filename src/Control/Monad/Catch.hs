@@ -122,7 +122,7 @@ class Monad m => MonadCatch m where
   -- 'ControlException.catch'.
   catch :: Exception e => m a -> (e -> m a) -> m a
 
-  -- | Runs an action with asynchronous exceptions diabled. The action is
+  -- | Runs an action with asynchronous exceptions disabled. The action is
   -- provided a method for restoring the async. environment to what it was
   -- at the 'mask' call. See "Control.Exception"'s 'ControlException.mask'.
   mask :: ((forall a. m a -> m a) -> m b) -> m b
