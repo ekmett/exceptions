@@ -33,7 +33,6 @@ limitations under the License.
 --------------------------------------------------------------------
 -- |
 -- Copyright :  (c) Edward Kmett 2013, (c) Google Inc. 2012
--- License   :  BSD3
 -- Maintainer:  Edward Kmett <ekmett@gmail.com>
 -- Stability :  experimental
 -- Portability: non-portable
