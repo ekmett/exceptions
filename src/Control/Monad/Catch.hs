@@ -324,12 +324,15 @@ handle :: (MonadCatch m, Exception e) => (e -> m a) -> m a -> m a
 handle = flip catch
 {-# INLINE handle #-}
 
+-- | Flipped 'catchIOError'
 handleIOError :: MonadCatch m => (IOError -> m a) -> m a -> m a
 handleIOError = handle
 
+-- | Flipped 'catchAll'
 handleAll :: MonadCatch m => (SomeException -> m a) -> m a -> m a
 handleAll = handle
 
+-- | Flipped 'catchIf'
 handleIf :: (MonadCatch m, Exception e) => (e -> Bool) -> (e -> m a) -> m a -> m a
 handleIf f = flip (catchIf f)
 
