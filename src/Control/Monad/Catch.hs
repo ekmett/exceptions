@@ -22,6 +22,10 @@ limitations under the License.
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 702
+{-# LANGUAGE Trustworthy #-}
+#endif
+
 #ifndef MIN_VERSION_transformers
 #define MIN_VERSION_transformers(x,y,z) 1
 #endif
