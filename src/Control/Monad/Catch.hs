@@ -185,7 +185,20 @@ instance (MonadCatch m, Monoid w) => MonadCatch (StrictRWS.RWST r w s m) where
 -- The @transformers@-style monad transfomer
 ------------------------------------------------------------------------------
 
--- | Add 'Exception' handling abilities to a 'Monad'.
+-- | Exception simulation monad-transformer, which adds 'Exception'
+-- throwing/catching abilities to a given 'Monad'.
+--
+-- Note that 'IO' monad has these abilities already, so stacking 'CatchT' on top
+-- of it does not add any value and can possibly be confusing:
+--
+-- >>> (error "Hello!" :: IO ()) `catch` (\(e :: ErrorCall) -> liftIO $ print e)
+-- Hello!
+--
+-- >>> runCatchT $ (error "Hello!" :: CatchT IO ()) `catch` (\(e :: ErrorCall) -> liftIO $ print e)
+-- *** Exception: Hello!
+--
+-- >>> runCatchT $ (throwM (ErrorCall "Hello!") :: CatchT IO ()) `catch` (\(e :: ErrorCall) -> liftIO $ print e)
+-- Hello!
 newtype CatchT m a = CatchT { runCatchT :: m (Either SomeException a) }
 
 type Catch = CatchT Identity
