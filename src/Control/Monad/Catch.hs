@@ -126,63 +126,96 @@ class Monad m => MonadCatch m where
   -- 'ControlException.catch'.
   catch :: Exception e => m a -> (e -> m a) -> m a
 
-  -- | Runs an action with asynchronous exceptions diabled. The action is
+  -- | Runs an action with asynchronous exceptions disabled. The action is
   -- provided a method for restoring the async. environment to what it was
   -- at the 'mask' call. See "Control.Exception"'s 'ControlException.mask'.
   mask :: ((forall a. m a -> m a) -> m b) -> m b
+
+  -- | Like 'mask', but the masked computation is not interruptible (see
+  -- "Control.Exception"'s 'ControlException.uninterruptibleMask'. WARNING:
+  -- Only use if you need to mask exceptions around an interruptible operation
+  -- AND you can guarantee the interruptible operation will only block for a
+  -- short period of time. Otherwise you render the program/thread unresponsive
+  -- and/or unkillable.
+  uninterruptibleMask :: ((forall a. m a -> m a) -> m b) -> m b
 
 instance MonadCatch IO where
   throwM = ControlException.throwIO
   catch = ControlException.catch
   mask = ControlException.mask
+  uninterruptibleMask = ControlException.uninterruptibleMask
 
 instance MonadCatch m => MonadCatch (IdentityT m) where
   throwM e = lift $ throwM e
   catch (IdentityT m) f = IdentityT (catch m (runIdentityT . f))
   mask a = IdentityT $ mask $ \u -> runIdentityT (a $ q u)
     where q u = IdentityT . u . runIdentityT
+  uninterruptibleMask a =
+    IdentityT $ uninterruptibleMask $ \u -> runIdentityT (a $ q u)
+      where q u = IdentityT . u . runIdentityT
 
 instance MonadCatch m => MonadCatch (LazyS.StateT s m) where
   throwM e = lift $ throwM e
   catch = LazyS.liftCatch catch
   mask a = LazyS.StateT $ \s -> mask $ \u -> LazyS.runStateT (a $ q u) s
     where q u (LazyS.StateT b) = LazyS.StateT (u . b)
+  uninterruptibleMask a =
+    LazyS.StateT $ \s -> uninterruptibleMask $ \u -> LazyS.runStateT (a $ q u) s
+      where q u (LazyS.StateT b) = LazyS.StateT (u . b)
 
 instance MonadCatch m => MonadCatch (StrictS.StateT s m) where
   throwM e = lift $ throwM e
   catch = StrictS.liftCatch catch
   mask a = StrictS.StateT $ \s -> mask $ \u -> StrictS.runStateT (a $ q u) s
     where q u (StrictS.StateT b) = StrictS.StateT (u . b)
+  uninterruptibleMask a =
+    StrictS.StateT $ \s -> uninterruptibleMask $ \u -> StrictS.runStateT (a $ q u) s
+      where q u (StrictS.StateT b) = StrictS.StateT (u . b)
 
 instance MonadCatch m => MonadCatch (ReaderT r m) where
   throwM e = lift $ throwM e
   catch (ReaderT m) c = ReaderT $ \r -> m r `catch` \e -> runReaderT (c e) r
   mask a = ReaderT $ \e -> mask $ \u -> Reader.runReaderT (a $ q u) e
     where q u (ReaderT b) = ReaderT (u . b)
+  uninterruptibleMask a =
+    ReaderT $ \e -> uninterruptibleMask $ \u -> Reader.runReaderT (a $ q u) e
+      where q u (ReaderT b) = ReaderT (u . b)
 
 instance (MonadCatch m, Monoid w) => MonadCatch (StrictW.WriterT w m) where
   throwM e = lift $ throwM e
   catch (StrictW.WriterT m) h = StrictW.WriterT $ m `catch ` \e -> StrictW.runWriterT (h e)
   mask a = StrictW.WriterT $ mask $ \u -> StrictW.runWriterT (a $ q u)
     where q u b = StrictW.WriterT $ u (StrictW.runWriterT b)
+  uninterruptibleMask a =
+    StrictW.WriterT $ uninterruptibleMask $ \u -> StrictW.runWriterT (a $ q u)
+      where q u b = StrictW.WriterT $ u (StrictW.runWriterT b)
 
 instance (MonadCatch m, Monoid w) => MonadCatch (LazyW.WriterT w m) where
   throwM e = lift $ throwM e
   catch (LazyW.WriterT m) h = LazyW.WriterT $ m `catch ` \e -> LazyW.runWriterT (h e)
   mask a = LazyW.WriterT $ mask $ \u -> LazyW.runWriterT (a $ q u)
     where q u b = LazyW.WriterT $ u (LazyW.runWriterT b)
+  uninterruptibleMask a =
+    LazyW.WriterT $ uninterruptibleMask $ \u -> LazyW.runWriterT (a $ q u)
+      where q u b = LazyW.WriterT $ u (LazyW.runWriterT b)
 
 instance (MonadCatch m, Monoid w) => MonadCatch (LazyRWS.RWST r w s m) where
   throwM e = lift $ throwM e
   catch (LazyRWS.RWST m) h = LazyRWS.RWST $ \r s -> m r s `catch` \e -> LazyRWS.runRWST (h e) r s
   mask a = LazyRWS.RWST $ \r s -> mask $ \u -> LazyRWS.runRWST (a $ q u) r s
     where q u (LazyRWS.RWST b) = LazyRWS.RWST $ \ r s -> u (b r s)
+  uninterruptibleMask a =
+    LazyRWS.RWST $ \r s -> uninterruptibleMask $ \u -> LazyRWS.runRWST (a $ q u) r s
+      where q u (LazyRWS.RWST b) = LazyRWS.RWST $ \ r s -> u (b r s)
 
 instance (MonadCatch m, Monoid w) => MonadCatch (StrictRWS.RWST r w s m) where
   throwM e = lift $ throwM e
   catch (StrictRWS.RWST m) h = StrictRWS.RWST $ \r s -> m r s `catch` \e -> StrictRWS.runRWST (h e) r s
   mask a = StrictRWS.RWST $ \r s -> mask $ \u -> StrictRWS.runRWST (a $ q u) r s
     where q u (StrictRWS.RWST b) = StrictRWS.RWST $ \ r s -> u (b r s)
+  uninterruptibleMask a =
+    StrictRWS.RWST $ \r s -> uninterruptibleMask $ \u -> StrictRWS.runRWST (a $ q u) r s
+      where q u (StrictRWS.RWST b) = StrictRWS.RWST $ \ r s -> u (b r s)
 
 ------------------------------------------------------------------------------
 -- $transformer
@@ -254,6 +287,7 @@ instance Monad m => MonadCatch (CatchT m) where
       Nothing -> return (Left e)
     Right a -> return (Right a)
   mask a = a id
+  uninterruptibleMask a = a id
 
 instance MonadState s m => MonadState s (CatchT m) where
   get = lift get
