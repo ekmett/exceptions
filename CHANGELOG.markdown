@@ -1,3 +1,7 @@
+0.2
+---
+* Added `uninterruptibleMask` to `MonadCatch`.
+
 0.1.1
 -----
 * Flagged `Control.Monad.Catch` as `Trustworthy`
