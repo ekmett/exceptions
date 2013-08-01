@@ -68,6 +68,8 @@ module Control.Monad.Catch (
 
     -- * Utilities
     -- $utilities
+  , mask_
+  , uninterruptibleMask_
   , catchAll
   , catchIOError
   , catchJust
@@ -330,6 +332,15 @@ mapCatchT f m = CatchT $ f (runCatchT m)
 -- based on methods from the 'MonadCatch' typeclass. See
 -- "Control.Exception" for API usage.
 ------------------------------------------------------------------------------
+
+-- | Like 'mask', but does not pass a @restore@ action to the argument.
+mask_ :: MonadCatch m => m a -> m a
+mask_ io = mask $ \_ -> io
+
+-- | Like 'uninterruptibleMask', but does not pass a @restore@ action to the
+-- argument.
+uninterruptibleMask_ :: MonadCatch m => m a -> m a
+uninterruptibleMask_ io = uninterruptibleMask $ \_ -> io
 
 -- | Catches all exceptions, and somewhat defeats the purpose of the extensible
 -- exception system. Use sparingly.
