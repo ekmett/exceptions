@@ -35,7 +35,9 @@ library
   build-depends:
     base                       >= 4.3      && < 5,
     transformers               >= 0.2      && < 0.4,
-    mtl                        >= 2.0      && < 2.2
+    mtl                        >= 2.0      && < 2.2,
+    monad-control              >= 0.3      && < 0.4,
+    lifted-base                >= 0.2      && < 0.3
 
   exposed-modules:
     Control.Monad.Catch
