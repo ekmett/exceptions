@@ -60,12 +60,6 @@ module Control.Monad.Catch (
     -- $mtl
     MonadCatch(..)
 
-    -- * Transformer
-    -- $transformer
-  , CatchT(..), Catch
-  , runCatch
-  , mapCatchT
-
     -- * Utilities
     -- $utilities
   , catchAll
@@ -93,7 +87,6 @@ import Prelude hiding (foldr)
 import Prelude hiding (catch, foldr)
 #endif
 
-import Control.Applicative
 import Control.Exception (Exception(..), SomeException(..))
 import qualified Control.Exception as ControlException
 import qualified Control.Monad.Trans.RWS.Lazy as LazyRWS
@@ -106,8 +99,6 @@ import Control.Monad.Trans.Identity
 import Control.Monad.Reader as Reader
 import Control.Monad.RWS
 import Data.Foldable
-import Data.Functor.Identity
-import Data.Traversable as Traversable
 
 ------------------------------------------------------------------------------
 -- $mtl
@@ -216,113 +207,6 @@ instance (MonadCatch m, Monoid w) => MonadCatch (StrictRWS.RWST r w s m) where
   uninterruptibleMask a =
     StrictRWS.RWST $ \r s -> uninterruptibleMask $ \u -> StrictRWS.runRWST (a $ q u) r s
       where q u (StrictRWS.RWST b) = StrictRWS.RWST $ \ r s -> u (b r s)
-
-------------------------------------------------------------------------------
--- $transformer
--- The @transformers@-style monad transfomer
-------------------------------------------------------------------------------
-
--- | Add 'Exception' handling abilities to a 'Monad'.
-newtype CatchT m a = CatchT { runCatchT :: m (Either SomeException a) }
-
-type Catch = CatchT Identity
-
-runCatch :: Catch a -> Either SomeException a
-runCatch = runIdentity . runCatchT
-
-instance Monad m => Functor (CatchT m) where
-  fmap f (CatchT m) = CatchT (liftM (fmap f) m)
-
-instance Monad m => Applicative (CatchT m) where
-  pure a = CatchT (return (Right a))
-  (<*>) = ap
-
-instance Monad m => Monad (CatchT m) where
-  return a = CatchT (return (Right a))
-  CatchT m >>= k = CatchT $ m >>= \ea -> case ea of
-    Left e -> return (Left e)
-    Right a -> runCatchT (k a)
-  fail = CatchT . return . Left . toException . userError
-
-instance MonadFix m => MonadFix (CatchT m) where
-  mfix f = CatchT $ mfix $ \a -> runCatchT $ f $ case a of
-    Right r -> r
-    _       -> error "empty mfix argument"
-
-instance Foldable m => Foldable (CatchT m) where
-  foldMap f (CatchT m) = foldMap (foldMapEither f) m where
-    foldMapEither g (Right a) = g a
-    foldMapEither _ (Left _) = mempty
-
-instance (Monad m, Traversable m) => Traversable (CatchT m) where
-  traverse f (CatchT m) = CatchT <$> Traversable.traverse (traverseEither f) m where
-    traverseEither g (Right a) = Right <$> g a
-    traverseEither _ (Left e) = pure (Left e)
-
-instance Monad m => Alternative (CatchT m) where
-  empty = mzero
-  (<|>) = mplus
-
-instance Monad m => MonadPlus (CatchT m) where
-  mzero = CatchT $ return $ Left $ toException $ userError ""
-  mplus (CatchT m) (CatchT n) = CatchT $ m >>= \ea -> case ea of
-    Left _ -> n
-    Right a -> return (Right a)
-
-instance MonadTrans CatchT where
-  lift m = CatchT $ do
-    a <- m
-    return $ Right a
-
-instance MonadIO m => MonadIO (CatchT m) where
-  liftIO m = CatchT $ do
-    a <- liftIO m
-    return $ Right a
-
-instance Monad m => MonadCatch (CatchT m) where
-  throwM = CatchT . return . Left . toException
-  catch (CatchT m) c = CatchT $ m >>= \ea -> case ea of
-    Left e -> case fromException e of
-      Just e' -> runCatchT (c e')
-      Nothing -> return (Left e)
-    Right a -> return (Right a)
-  mask a = a id
-  uninterruptibleMask a = a id
-
-instance MonadState s m => MonadState s (CatchT m) where
-  get = lift get
-  put = lift . put
-#if MIN_VERSION_mtl(2,1,0)
-  state = lift . state
-#endif
-
-instance MonadReader e m => MonadReader e (CatchT m) where
-  ask = lift ask
-  local f (CatchT m) = CatchT (local f m)
-
-instance MonadWriter w m => MonadWriter w (CatchT m) where
-  tell = lift . tell
-  listen = mapCatchT $ \ m -> do
-    (a, w) <- listen m
-    return $! fmap (\ r -> (r, w)) a
-  pass = mapCatchT $ \ m -> pass $ do
-    a <- m
-    return $! case a of
-        Left  l      -> (Left  l, id)
-        Right (r, f) -> (Right r, f)
-#if MIN_VERSION_mtl(2,1,0)
-  writer aw = CatchT (Right `liftM` writer aw)
-#endif
-
-instance MonadRWS r w s m => MonadRWS r w s (CatchT m)
-
--- | Map the unwrapped computation using the given function.
---
--- * @'runErrorT' ('mapErrorT' f m) = f ('runErrorT' m@)
-mapCatchT :: (m (Either SomeException a) -> n (Either SomeException b))
-          -> CatchT m a
-          -> CatchT n b
-mapCatchT f m = CatchT $ f (runCatchT m)
 
 ------------------------------------------------------------------------------
 -- $utilities
