@@ -95,6 +95,7 @@ import Prelude hiding (catch, foldr)
 
 import Control.Applicative
 import Control.Exception (Exception(..), SomeException(..))
+import qualified Control.Exception.Lifted as Lifted
 import qualified Control.Exception as ControlException
 import qualified Control.Monad.Trans.RWS.Lazy as LazyRWS
 import qualified Control.Monad.Trans.RWS.Strict as StrictRWS
@@ -103,6 +104,7 @@ import qualified Control.Monad.Trans.State.Strict as StrictS
 import qualified Control.Monad.Trans.Writer.Lazy as LazyW
 import qualified Control.Monad.Trans.Writer.Strict as StrictW
 import Control.Monad.Trans.Identity
+import qualified Control.Monad.Trans.Control as Control
 import Control.Monad.Reader as Reader
 import Control.Monad.RWS
 import Data.Foldable
@@ -144,6 +146,12 @@ instance MonadCatch IO where
   catch = ControlException.catch
   mask = ControlException.mask
   uninterruptibleMask = ControlException.uninterruptibleMask
+
+instance Control.MonadBaseControl IO m => MonadCatch m where
+  throwM = Lifted.throwIO
+  catch = Lifted.catch
+  mask = Lifted.mask
+  uninterruptibleMask = Lifted.uninterruptibleMask
 
 instance MonadCatch m => MonadCatch (IdentityT m) where
   throwM e = lift $ throwM e
