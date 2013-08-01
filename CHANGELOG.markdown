@@ -1,3 +1,7 @@
+0.2.1
+---
+* Added `mask_` and `uninterruptibleMask_` to `Control.Monad.Catch`.
+
 0.2
 ---
 * Added `uninterruptibleMask` to `MonadCatch`.
