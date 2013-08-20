@@ -1,3 +1,8 @@
+0.3.2
+-----
+* Better documentation for `CatchT`.
+* Added `handle`-like analogues for parity with `Control.Exception`.
+
 0.3.1
 -----
 * Fixed test suite.
