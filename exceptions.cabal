@@ -1,6 +1,6 @@
 name:          exceptions
 category:      Control, Exceptions, Monad
-version:       0.2
+version:       0.3
 cabal-version: >= 1.8
 license:       OtherLicense
 license-file:  LICENSE
@@ -39,6 +39,7 @@ library
 
   exposed-modules:
     Control.Monad.Catch
+    Control.Monad.Catch.Pure
 
   ghc-options: -Wall -fwarn-tabs -O2
   hs-source-dirs: src
