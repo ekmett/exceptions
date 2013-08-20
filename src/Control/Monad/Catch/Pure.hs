@@ -90,6 +90,19 @@ import Data.Traversable as Traversable
 -- This should /never/ be used in combination with 'IO'. Think of 'CatchT'
 -- as an alternative base monad for use with mocking code that solely throws
 -- exceptions via 'throwM'.
+--
+-- Note: that 'IO' monad has these abilities already, so stacking 'CatchT' on top
+-- of it does not add any value and can possibly be confusing:
+--
+-- >>> (error "Hello!" :: IO ()) `catch` (\(e :: ErrorCall) -> liftIO $ print e)
+-- Hello!
+--
+-- >>> runCatchT $ (error "Hello!" :: CatchT IO ()) `catch` (\(e :: ErrorCall) -> liftIO $ print e)
+-- *** Exception: Hello!
+--
+-- >>> runCatchT $ (throwM (ErrorCall "Hello!") :: CatchT IO ()) `catch` (\(e :: ErrorCall) -> liftIO $ print e)
+-- Hello!
+
 newtype CatchT m a = CatchT { runCatchT :: m (Either SomeException a) }
 
 type Catch = CatchT Identity
