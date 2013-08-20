@@ -70,7 +70,10 @@ module Control.Monad.Catch (
   , catchIf
   , Handler(..), catches
   , handle
+  , handleAll
+  , handleIOError
   , handleJust
+  , handleIf
   , try
   , tryJust
   , onException
@@ -253,6 +256,18 @@ catchJust f a b = a `catch` \e -> maybe (throwM e) b $ f e
 handle :: (MonadCatch m, Exception e) => (e -> m a) -> m a -> m a
 handle = flip catch
 {-# INLINE handle #-}
+
+-- | Flipped 'catchIOError'
+handleIOError :: MonadCatch m => (IOError -> m a) -> m a -> m a
+handleIOError = handle
+
+-- | Flipped 'catchAll'
+handleAll :: MonadCatch m => (SomeException -> m a) -> m a -> m a
+handleAll = handle
+
+-- | Flipped 'catchIf'
+handleIf :: (MonadCatch m, Exception e) => (e -> Bool) -> (e -> m a) -> m a -> m a
+handleIf f = flip (catchIf f)
 
 -- | Flipped 'catchJust'. See "Control.Exception"'s 'ControlException.handleJust'.
 handleJust :: (MonadCatch m, Exception e) => (e -> Maybe b) -> (b -> m a) -> m a -> m a
