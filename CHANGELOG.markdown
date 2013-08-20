@@ -1,3 +1,7 @@
+0.3
+---
+* Moved `CatchT` to `Control.Monad.Catch.Pure` to make it clear it isn't required for working with `IO`.
+
 0.2.1
 ---
 * Added `mask_` and `uninterruptibleMask_` to `Control.Monad.Catch`.
