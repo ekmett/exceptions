@@ -1,3 +1,7 @@
+0.3.1
+-----
+* Fixed test suite.
+
 0.3
 ---
 * Moved `CatchT` to `Control.Monad.Catch.Pure` to make it clear it isn't required for working with `IO`.
