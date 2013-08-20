@@ -27,8 +27,8 @@ import qualified Control.Monad.Writer.Strict as StrictWriter
 import qualified Control.Monad.RWS.Lazy as LazyRWS
 import qualified Control.Monad.RWS.Strict as StrictRWS
 
-import Control.Monad.Catch (Exception, MonadCatch(..), runCatch,
-                            catchJust)
+import Control.Monad.Catch
+import Control.Monad.Catch.Pure
 
 data TestException = TestException String
     deriving (Show, Eq, Data, Typeable)
