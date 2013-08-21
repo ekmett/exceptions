@@ -41,7 +41,7 @@ limitations under the License.
 -- Stability :  experimental
 -- Portability: non-portable
 --
--- This module supplies a 'pure' monad transformer that can be used for
+-- This module supplies a \'pure\' monad transformer that can be used for
 -- mock-testing code that throws exceptions, so long as those exceptions
 -- are always thrown with 'throwM'.
 --
@@ -198,7 +198,7 @@ instance MonadRWS r w s m => MonadRWS r w s (CatchT m)
 
 -- | Map the unwrapped computation using the given function.
 --
--- * @'runErrorT' ('mapErrorT' f m) = f ('runErrorT' m@)
+-- @'runCatchT' ('mapCatchT' f m) = f ('runCatchT' m)@
 mapCatchT :: (m (Either SomeException a) -> n (Either SomeException b))
           -> CatchT m a
           -> CatchT n b
