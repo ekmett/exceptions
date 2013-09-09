@@ -49,6 +49,10 @@ test-suite exceptions-tests
   hs-source-dirs: src, tests
   ghc-options: -Wall -fwarn-tabs
   type: exitcode-stdio-1.0
+
+  other-modules:
+    Control.Monad.Catch.Tests
+
   build-depends:
     base                       >= 4.3      && < 5,
     transformers               >= 0.2      && < 0.4,
