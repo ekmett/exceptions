@@ -46,6 +46,7 @@ library
 
 test-suite exceptions-tests
   main-is: Tests.hs
+  other-modules: Control.Monad.Catch.Tests
   hs-source-dirs: src, tests
   ghc-options: -Wall -fwarn-tabs
   type: exitcode-stdio-1.0
