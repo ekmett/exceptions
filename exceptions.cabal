@@ -1,6 +1,6 @@
 name:          exceptions
 category:      Control, Exceptions, Monad
-version:       0.3.2
+version:       0.3.3
 cabal-version: >= 1.8
 license:       OtherLicense
 license-file:  LICENSE
