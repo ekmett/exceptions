@@ -1,3 +1,7 @@
+0.3.3
+-----
+* Relicensed under the 3-clause BSD license.
+
 0.3.2
 -----
 * Better documentation for `CatchT`.
