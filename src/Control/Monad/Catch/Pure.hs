@@ -1,19 +1,3 @@
-{-
-Copyright 2012 Google Inc. All Rights Reserved.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--}
-
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -36,12 +20,13 @@ limitations under the License.
 
 --------------------------------------------------------------------
 -- |
--- Copyright :  (c) Edward Kmett 2013, (c) Google Inc. 2012
--- Maintainer:  Edward Kmett <ekmett@gmail.com>
--- Stability :  experimental
--- Portability: non-portable
+-- Copyright   : (c) Edward Kmett 2013-2014, (c) Google Inc. 2012
+-- Maintainer  : Edward Kmett <ekmett@gmail.com>
+-- License     : BSD-style (see the file LICENSE)
+-- Stability   : experimental
+-- Portability : non-portable
 --
--- This module supplies a 'pure' monad transformer that can be used for
+-- This module supplies a \'pure\' monad transformer that can be used for
 -- mock-testing code that throws exceptions, so long as those exceptions
 -- are always thrown with 'throwM'.
 --
@@ -198,7 +183,7 @@ instance MonadRWS r w s m => MonadRWS r w s (CatchT m)
 
 -- | Map the unwrapped computation using the given function.
 --
--- * @'runErrorT' ('mapErrorT' f m) = f ('runErrorT' m@)
+-- @'runCatchT' ('mapCatchT' f m) = f ('runCatchT' m)@
 mapCatchT :: (m (Either SomeException a) -> n (Either SomeException b))
           -> CatchT m a
           -> CatchT n b
