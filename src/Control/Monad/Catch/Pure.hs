@@ -20,11 +20,11 @@
 
 --------------------------------------------------------------------
 -- |
--- Copyright   : (c) Edward Kmett 2013-2014, (c) Google Inc. 2012
--- Maintainer  : Edward Kmett <ekmett@gmail.com>
--- License     : BSD-style (see the file LICENSE)
--- Stability   : experimental
--- Portability : non-portable
+-- Copyright   :  (C) Edward Kmett 2013-2014, (c) Google Inc. 2012
+-- License     :  BSD-style (see the file LICENSE)
+-- Maintainer  :  Edward Kmett <ekmett@gmail.com>
+-- Stability   :  experimental
+-- Portability :  non-portable
 --
 -- This module supplies a \'pure\' monad transformer that can be used for
 -- mock-testing code that throws exceptions, so long as those exceptions
