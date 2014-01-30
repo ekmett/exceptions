@@ -46,6 +46,7 @@ library
 
 test-suite exceptions-tests
   main-is: Tests.hs
+  other-modules: Control.Monad.Catch.Tests
   hs-source-dirs: src, tests
   ghc-options: -Wall -fwarn-tabs
   type: exitcode-stdio-1.0
@@ -56,4 +57,4 @@ test-suite exceptions-tests
 
     test-framework             >= 0.8      && < 0.9,
     test-framework-quickcheck2 >= 0.3      && < 0.4,
-    QuickCheck                 >= 2.5      && < 2.6
+    QuickCheck                 >= 2.5      && < 2.7
