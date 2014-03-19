@@ -1,3 +1,7 @@
+0.3.3.1
+-------
+* QuickCheck dependency bump
+
 0.3.3
 -----
 * Relicensed under the 3-clause BSD license.
