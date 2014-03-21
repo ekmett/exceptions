@@ -126,6 +126,13 @@ class MonadThrow m => MonadCatch m where
   -- and/or unkillable.
   uninterruptibleMask :: ((forall a. m a -> m a) -> m b) -> m b
 
+instance MonadThrow [] where
+  throwM _ = []
+instance MonadThrow Maybe where
+  throwM _ = Nothing
+instance MonadThrow (Either SomeException) where
+  throwM = Left . toException
+
 instance MonadThrow IO where
   throwM = ControlException.throwIO
 instance MonadCatch IO where
