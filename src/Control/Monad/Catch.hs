@@ -61,10 +61,7 @@ module Control.Monad.Catch (
   , try
   , tryJust
   , onException
-  , bracket
-  , bracket_
   , finally
-  , bracketOnError
     -- * Re-exports from Control.Exception
   , Exception(..)
   , SomeException(..)
@@ -118,6 +115,32 @@ class Monad m => MonadCatch m where
   -- short period of time. Otherwise you render the program/thread unresponsive
   -- and/or unkillable.
   uninterruptibleMask :: ((forall a. m a -> m a) -> m b) -> m b
+
+  -- | Generalized abstracted pattern of safe resource acquisition and release
+  -- in the face of exceptions. The first action \"acquires\" some value, which
+  -- is \"released\" by the second action at the end. The third action \"uses\"
+  -- the value and its result is the result of the 'bracket'.
+  --
+  -- If an exception occurs during the use, the release still happens before the
+  -- exception is rethrown.
+  bracket :: MonadCatch m => m a -> (a -> m b) -> (a -> m c) -> m c
+  bracket acquire release use = mask $ \unmasked -> do
+    resource <- acquire
+    result <- unmasked (use resource) `onException` release resource
+    _ <- release resource
+    return result
+
+  -- | Version of 'bracket' without any value being passed to the second and
+  -- third actions.
+  bracket_ :: MonadCatch m => m a -> m b -> m c -> m c
+  bracket_ before after action = bracket before (const after) (const action)
+
+  -- | Like 'bracket', but only performs the final action if there was an
+  -- exception raised by the in-between computation.
+  bracketOnError :: MonadCatch m => m a -> (a -> m b) -> (a -> m c) -> m c
+  bracketOnError acquire release use = mask $ \unmasked -> do
+    resource <- acquire
+    unmasked (use resource) `onException` release resource
 
 instance MonadCatch IO where
   throwM = ControlException.throwIO
@@ -288,33 +311,7 @@ catches a hs = a `catch` handler
 onException :: MonadCatch m => m a -> m b -> m a
 onException action handler = action `catchAll` \e -> handler >> throwM e
 
--- | Generalized abstracted pattern of safe resource acquisition and release
--- in the face of exceptions. The first action \"acquires\" some value, which
--- is \"released\" by the second action at the end. The third action \"uses\"
--- the value and its result is the result of the 'bracket'.
---
--- If an exception occurs during the use, the release still happens before the
--- exception is rethrown.
-bracket :: MonadCatch m => m a -> (a -> m b) -> (a -> m c) -> m c
-bracket acquire release use = mask $ \unmasked -> do
-  resource <- acquire
-  result <- unmasked (use resource) `onException` release resource
-  _ <- release resource
-  return result
-
--- | Version of 'bracket' without any value being passed to the second and
--- third actions.
-bracket_ :: MonadCatch m => m a -> m b -> m c -> m c
-bracket_ before after action = bracket before (const after) (const action)
-
 -- | Perform an action with a finalizer action that is run, even if an
 -- exception occurs.
 finally :: MonadCatch m => m a -> m b -> m a
 finally action finalizer = bracket_ (return ()) finalizer action
-
--- | Like 'bracket', but only performs the final action if there was an
--- exception raised by the in-between computation.
-bracketOnError :: MonadCatch m => m a -> (a -> m b) -> (a -> m c) -> m c
-bracketOnError acquire release use = mask $ \unmasked -> do
-  resource <- acquire
-  unmasked (use resource) `onException` release resource
