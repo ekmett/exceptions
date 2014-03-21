@@ -144,8 +144,9 @@ instance MonadIO m => MonadIO (CatchT m) where
     a <- liftIO m
     return $ Right a
 
-instance Monad m => MonadCatch (CatchT m) where
+instance Monad m => MonadThrow (CatchT m) where
   throwM = CatchT . return . Left . toException
+instance Monad m => MonadCatch (CatchT m) where
   catch (CatchT m) c = CatchT $ m >>= \ea -> case ea of
     Left e -> case fromException e of
       Just e' -> runCatchT (c e')
