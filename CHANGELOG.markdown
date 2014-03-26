@@ -1,3 +1,7 @@
+0.4
+---
+* Factored out a separate `MonadThrow`.
+
 0.3.3.1
 -------
 * QuickCheck dependency bump
