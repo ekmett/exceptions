@@ -86,6 +86,10 @@ import qualified Control.Monad.Trans.State.Lazy as LazyS
 import qualified Control.Monad.Trans.State.Strict as StrictS
 import qualified Control.Monad.Trans.Writer.Lazy as LazyW
 import qualified Control.Monad.Trans.Writer.Strict as StrictW
+import Control.Monad.Trans.List (ListT)
+import Control.Monad.Trans.Maybe (MaybeT)
+import Control.Monad.Trans.Error (ErrorT, Error)
+import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Identity
 import Control.Monad.Reader as Reader
 import Control.Monad.RWS
@@ -220,6 +224,16 @@ instance (MonadCatch m, Monoid w) => MonadCatch (StrictRWS.RWST r w s m) where
   uninterruptibleMask a =
     StrictRWS.RWST $ \r s -> uninterruptibleMask $ \u -> StrictRWS.runRWST (a $ q u) r s
       where q u (StrictRWS.RWST b) = StrictRWS.RWST $ \ r s -> u (b r s)
+
+-- Transformers which are only instances of MonadThrow, not MonadCatch
+instance MonadThrow m => MonadThrow (ListT m) where
+  throwM = lift . throwM
+instance MonadThrow m => MonadThrow (MaybeT m) where
+  throwM = lift . throwM
+instance (Error e, MonadThrow m) => MonadThrow (ErrorT e m) where
+  throwM = lift . throwM
+instance MonadThrow m => MonadThrow (ContT r m) where
+  throwM = lift . throwM
 
 ------------------------------------------------------------------------------
 -- $utilities
