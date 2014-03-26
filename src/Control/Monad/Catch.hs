@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeFamilies #-}
 
 #if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 702
 {-# LANGUAGE Trustworthy #-}
@@ -130,7 +131,7 @@ instance MonadThrow [] where
   throwM _ = []
 instance MonadThrow Maybe where
   throwM _ = Nothing
-instance MonadThrow (Either SomeException) where
+instance e ~ SomeException => MonadThrow (Either e) where
   throwM = Left . toException
 
 instance MonadThrow IO where
