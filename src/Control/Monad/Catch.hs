@@ -45,6 +45,7 @@ module Control.Monad.Catch (
     -- $mtl
     MonadThrow(..)
   , MonadCatch(..)
+  , MonadMask(..)
 
     -- * Utilities
     -- $utilities
@@ -86,9 +87,9 @@ import qualified Control.Monad.Trans.State.Lazy as LazyS
 import qualified Control.Monad.Trans.State.Strict as StrictS
 import qualified Control.Monad.Trans.Writer.Lazy as LazyW
 import qualified Control.Monad.Trans.Writer.Strict as StrictW
-import Control.Monad.Trans.List (ListT)
-import Control.Monad.Trans.Maybe (MaybeT)
-import Control.Monad.Trans.Error (ErrorT, Error)
+import Control.Monad.Trans.List (ListT(..))
+import Control.Monad.Trans.Maybe (MaybeT(..))
+import Control.Monad.Trans.Error (ErrorT(..), Error)
 import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Identity
 import Control.Monad.Reader as Reader
@@ -101,6 +102,13 @@ import Data.Foldable
 ------------------------------------------------------------------------------
 
 -- | A class for monads in which exceptions may be thrown.
+--
+-- Instances should obey the following law:
+--
+-- > throwM e >> x = throwM e
+--
+-- In other words, throwing an exception short-circuits the rest of the monadic
+-- computation.
 class Monad m => MonadThrow m where
   -- | Throw an exception. Note that this throws when this action is run in
   -- the monad @m@, not when it is applied. It is a generalization of
@@ -111,6 +119,19 @@ class Monad m => MonadThrow m where
   -- > throwM e >> f = throwM e
   throwM :: Exception e => e -> m a
 
+-- | A class for monads which allow exceptions to be caught, in particular
+-- exceptions which were thrown by 'throwM'.
+--
+-- Instances should obey the following law:
+--
+-- > catch (throwM e) f = f e
+--
+-- Note that the ability to catch an exception does /not/ guarantee that we can
+-- deal with all possible exit points from a computation. Some monads, such as
+-- continuation-based stacks, allow for more than just a success/failure
+-- strategy, and therefore @catch@ /cannot/ be used by those monads to properly
+-- implement a function such as @finally@. For more information, see
+-- 'MonadMask'.
 class MonadThrow m => MonadCatch m where
   -- | Provide a handler for exceptions thrown during execution of the first
   -- action. Note that type of the type of the argument to the handler will
@@ -118,6 +139,24 @@ class MonadThrow m => MonadCatch m where
   -- 'ControlException.catch'.
   catch :: Exception e => m a -> (e -> m a) -> m a
 
+-- | A class for monads which provide for the ability to account for all
+-- possible exit points from a computation, and to mask asynchronous
+-- exceptions. Continuation-based monads, and stacks such as @ErrorT e IO@
+-- which provide for multiple failure modes, are invalid instances of this
+-- class.
+--
+-- Note that this package /does/ provide a @MonadMask@ instance for @CatchT@.
+-- This instance is /only/ valid if the base monad provides no ability to
+-- provide multiple exit. For example, @IO@ or @Either@ would be invalid base
+-- monads, but @Reader@ or @State@ would be acceptable.
+--
+-- Instances should ensure that, in the following code:
+--
+-- > f `finally` g
+--
+-- The action @g@ is called regardless of what occurs within @f@, including
+-- async exceptions.
+class MonadCatch m => MonadMask m where
   -- | Runs an action with asynchronous exceptions disabled. The action is
   -- provided a method for restoring the async. environment to what it was
   -- at the 'mask' call. See "Control.Exception"'s 'ControlException.mask'.
@@ -142,6 +181,7 @@ instance MonadThrow IO where
   throwM = ControlException.throwIO
 instance MonadCatch IO where
   catch = ControlException.catch
+instance MonadMask IO where
   mask = ControlException.mask
   uninterruptibleMask = ControlException.uninterruptibleMask
 
@@ -149,6 +189,7 @@ instance MonadThrow m => MonadThrow (IdentityT m) where
   throwM e = lift $ throwM e
 instance MonadCatch m => MonadCatch (IdentityT m) where
   catch (IdentityT m) f = IdentityT (catch m (runIdentityT . f))
+instance MonadMask m => MonadMask (IdentityT m) where
   mask a = IdentityT $ mask $ \u -> runIdentityT (a $ q u)
     where q u = IdentityT . u . runIdentityT
   uninterruptibleMask a =
@@ -159,6 +200,7 @@ instance MonadThrow m => MonadThrow (LazyS.StateT s m) where
   throwM e = lift $ throwM e
 instance MonadCatch m => MonadCatch (LazyS.StateT s m) where
   catch = LazyS.liftCatch catch
+instance MonadMask m => MonadMask (LazyS.StateT s m) where
   mask a = LazyS.StateT $ \s -> mask $ \u -> LazyS.runStateT (a $ q u) s
     where q u (LazyS.StateT b) = LazyS.StateT (u . b)
   uninterruptibleMask a =
@@ -169,6 +211,7 @@ instance MonadThrow m => MonadThrow (StrictS.StateT s m) where
   throwM e = lift $ throwM e
 instance MonadCatch m => MonadCatch (StrictS.StateT s m) where
   catch = StrictS.liftCatch catch
+instance MonadMask m => MonadMask (StrictS.StateT s m) where
   mask a = StrictS.StateT $ \s -> mask $ \u -> StrictS.runStateT (a $ q u) s
     where q u (StrictS.StateT b) = StrictS.StateT (u . b)
   uninterruptibleMask a =
@@ -179,6 +222,7 @@ instance MonadThrow m => MonadThrow (ReaderT r m) where
   throwM e = lift $ throwM e
 instance MonadCatch m => MonadCatch (ReaderT r m) where
   catch (ReaderT m) c = ReaderT $ \r -> m r `catch` \e -> runReaderT (c e) r
+instance MonadMask m => MonadMask (ReaderT r m) where
   mask a = ReaderT $ \e -> mask $ \u -> Reader.runReaderT (a $ q u) e
     where q u (ReaderT b) = ReaderT (u . b)
   uninterruptibleMask a =
@@ -189,6 +233,7 @@ instance (MonadThrow m, Monoid w) => MonadThrow (StrictW.WriterT w m) where
   throwM e = lift $ throwM e
 instance (MonadCatch m, Monoid w) => MonadCatch (StrictW.WriterT w m) where
   catch (StrictW.WriterT m) h = StrictW.WriterT $ m `catch ` \e -> StrictW.runWriterT (h e)
+instance (MonadMask m, Monoid w) => MonadMask (StrictW.WriterT w m) where
   mask a = StrictW.WriterT $ mask $ \u -> StrictW.runWriterT (a $ q u)
     where q u b = StrictW.WriterT $ u (StrictW.runWriterT b)
   uninterruptibleMask a =
@@ -199,6 +244,7 @@ instance (MonadThrow m, Monoid w) => MonadThrow (LazyW.WriterT w m) where
   throwM e = lift $ throwM e
 instance (MonadCatch m, Monoid w) => MonadCatch (LazyW.WriterT w m) where
   catch (LazyW.WriterT m) h = LazyW.WriterT $ m `catch ` \e -> LazyW.runWriterT (h e)
+instance (MonadMask m, Monoid w) => MonadMask (LazyW.WriterT w m) where
   mask a = LazyW.WriterT $ mask $ \u -> LazyW.runWriterT (a $ q u)
     where q u b = LazyW.WriterT $ u (LazyW.runWriterT b)
   uninterruptibleMask a =
@@ -209,6 +255,7 @@ instance (MonadThrow m, Monoid w) => MonadThrow (LazyRWS.RWST r w s m) where
   throwM e = lift $ throwM e
 instance (MonadCatch m, Monoid w) => MonadCatch (LazyRWS.RWST r w s m) where
   catch (LazyRWS.RWST m) h = LazyRWS.RWST $ \r s -> m r s `catch` \e -> LazyRWS.runRWST (h e) r s
+instance (MonadMask m, Monoid w) => MonadMask (LazyRWS.RWST r w s m) where
   mask a = LazyRWS.RWST $ \r s -> mask $ \u -> LazyRWS.runRWST (a $ q u) r s
     where q u (LazyRWS.RWST b) = LazyRWS.RWST $ \ r s -> u (b r s)
   uninterruptibleMask a =
@@ -219,21 +266,37 @@ instance (MonadThrow m, Monoid w) => MonadThrow (StrictRWS.RWST r w s m) where
   throwM e = lift $ throwM e
 instance (MonadCatch m, Monoid w) => MonadCatch (StrictRWS.RWST r w s m) where
   catch (StrictRWS.RWST m) h = StrictRWS.RWST $ \r s -> m r s `catch` \e -> StrictRWS.runRWST (h e) r s
+instance (MonadMask m, Monoid w) => MonadMask (StrictRWS.RWST r w s m) where
   mask a = StrictRWS.RWST $ \r s -> mask $ \u -> StrictRWS.runRWST (a $ q u) r s
     where q u (StrictRWS.RWST b) = StrictRWS.RWST $ \ r s -> u (b r s)
   uninterruptibleMask a =
     StrictRWS.RWST $ \r s -> uninterruptibleMask $ \u -> StrictRWS.runRWST (a $ q u) r s
       where q u (StrictRWS.RWST b) = StrictRWS.RWST $ \ r s -> u (b r s)
 
--- Transformers which are only instances of MonadThrow, not MonadCatch
+-- Transformers which are only instances of MonadThrow and MonadCatch, not MonadMask
 instance MonadThrow m => MonadThrow (ListT m) where
   throwM = lift . throwM
+instance MonadCatch m => MonadCatch (ListT m) where
+  catch (ListT m) f = ListT $ catch m (runListT . f)
+
+-- | Throws exceptions into the base monad.
 instance MonadThrow m => MonadThrow (MaybeT m) where
   throwM = lift . throwM
+-- | Catches exceptions from the base monad.
+instance MonadCatch m => MonadCatch (MaybeT m) where
+  catch (MaybeT m) f = MaybeT $ catch m (runMaybeT . f)
+
+-- | Throws exceptions into the base monad.
 instance (Error e, MonadThrow m) => MonadThrow (ErrorT e m) where
   throwM = lift . throwM
+-- | Catches exceptions from the base monad.
+instance (Error e, MonadCatch m) => MonadCatch (ErrorT e m) where
+  catch (ErrorT m) f = ErrorT $ catch m (runErrorT . f)
+
 instance MonadThrow m => MonadThrow (ContT r m) where
   throwM = lift . throwM
+-- I don't believe any valid of MonadCatch exists for ContT.
+-- instance MonadCatch m => MonadCatch (ContT r m) where
 
 ------------------------------------------------------------------------------
 -- $utilities
@@ -243,12 +306,12 @@ instance MonadThrow m => MonadThrow (ContT r m) where
 ------------------------------------------------------------------------------
 
 -- | Like 'mask', but does not pass a @restore@ action to the argument.
-mask_ :: MonadCatch m => m a -> m a
+mask_ :: MonadMask m => m a -> m a
 mask_ io = mask $ \_ -> io
 
 -- | Like 'uninterruptibleMask', but does not pass a @restore@ action to the
 -- argument.
-uninterruptibleMask_ :: MonadCatch m => m a -> m a
+uninterruptibleMask_ :: MonadMask m => m a -> m a
 uninterruptibleMask_ io = uninterruptibleMask $ \_ -> io
 
 -- | Catches all exceptions, and somewhat defeats the purpose of the extensible
@@ -333,7 +396,7 @@ onException action handler = action `catchAll` \e -> handler >> throwM e
 --
 -- If an exception occurs during the use, the release still happens before the
 -- exception is rethrown.
-bracket :: MonadCatch m => m a -> (a -> m b) -> (a -> m c) -> m c
+bracket :: MonadMask m => m a -> (a -> m b) -> (a -> m c) -> m c
 bracket acquire release use = mask $ \unmasked -> do
   resource <- acquire
   result <- unmasked (use resource) `onException` release resource
@@ -342,17 +405,17 @@ bracket acquire release use = mask $ \unmasked -> do
 
 -- | Version of 'bracket' without any value being passed to the second and
 -- third actions.
-bracket_ :: MonadCatch m => m a -> m b -> m c -> m c
+bracket_ :: MonadMask m => m a -> m b -> m c -> m c
 bracket_ before after action = bracket before (const after) (const action)
 
 -- | Perform an action with a finalizer action that is run, even if an
 -- exception occurs.
-finally :: MonadCatch m => m a -> m b -> m a
+finally :: MonadMask m => m a -> m b -> m a
 finally action finalizer = bracket_ (return ()) finalizer action
 
 -- | Like 'bracket', but only performs the final action if there was an
 -- exception raised by the in-between computation.
-bracketOnError :: MonadCatch m => m a -> (a -> m b) -> (a -> m c) -> m c
+bracketOnError :: MonadMask m => m a -> (a -> m b) -> (a -> m c) -> m c
 bracketOnError acquire release use = mask $ \unmasked -> do
   resource <- acquire
   unmasked (use resource) `onException` release resource
