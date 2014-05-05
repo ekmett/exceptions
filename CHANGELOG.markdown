@@ -1,3 +1,8 @@
+0.6
+---
+* Split out `MonadMask`
+* Added `transformers` 0.4 support
+
 0.4
 ---
 * Factored out a separate `MonadThrow`.

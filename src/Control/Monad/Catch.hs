@@ -90,6 +90,9 @@ import qualified Control.Monad.Trans.Writer.Strict as StrictW
 import Control.Monad.Trans.List (ListT(..))
 import Control.Monad.Trans.Maybe (MaybeT(..))
 import Control.Monad.Trans.Error (ErrorT(..), Error)
+#if MIN_VERSION_transformers(0,4,0)
+import Control.Monad.Trans.Except (ExceptT(..))
+#endif
 import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Identity
 import Control.Monad.Reader as Reader
@@ -292,6 +295,15 @@ instance (Error e, MonadThrow m) => MonadThrow (ErrorT e m) where
 -- | Catches exceptions from the base monad.
 instance (Error e, MonadCatch m) => MonadCatch (ErrorT e m) where
   catch (ErrorT m) f = ErrorT $ catch m (runErrorT . f)
+
+#if MIN_VERSION_transformers(0,4,0)
+-- | Throws exceptions into the base monad.
+instance MonadThrow m => MonadThrow (ExceptT e m) where
+  throwM = lift . throwM
+-- | Catches exceptions from the base monad.
+instance MonadCatch m => MonadCatch (ExceptT e m) where
+  catch (ExceptT m) f = ExceptT $ catch m (runExceptT . f)
+#endif
 
 instance MonadThrow m => MonadThrow (ContT r m) where
   throwM = lift . throwM
