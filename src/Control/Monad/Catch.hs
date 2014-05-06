@@ -87,15 +87,16 @@ import qualified Control.Monad.Trans.State.Lazy as LazyS
 import qualified Control.Monad.Trans.State.Strict as StrictS
 import qualified Control.Monad.Trans.Writer.Lazy as LazyW
 import qualified Control.Monad.Trans.Writer.Strict as StrictW
-import Control.Monad.Trans.List (ListT(..))
-import Control.Monad.Trans.Maybe (MaybeT(..))
-import Control.Monad.Trans.Error (ErrorT(..), Error)
+import Control.Monad.Trans.List (ListT(..), runListT)
+import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
+import Control.Monad.Trans.Error (ErrorT(..), Error, runErrorT)
 #if MIN_VERSION_transformers(0,4,0)
-import Control.Monad.Trans.Except (ExceptT(..))
+import Control.Monad.Trans.Except (ExceptT(..), runExceptT)
 #endif
 import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Identity
 import Control.Monad.Reader as Reader
+import Control.Monad.Trans.Reader (runReaderT)
 import Control.Monad.RWS
 import Data.Foldable
 
@@ -226,10 +227,10 @@ instance MonadThrow m => MonadThrow (ReaderT r m) where
 instance MonadCatch m => MonadCatch (ReaderT r m) where
   catch (ReaderT m) c = ReaderT $ \r -> m r `catch` \e -> runReaderT (c e) r
 instance MonadMask m => MonadMask (ReaderT r m) where
-  mask a = ReaderT $ \e -> mask $ \u -> Reader.runReaderT (a $ q u) e
+  mask a = ReaderT $ \e -> mask $ \u -> runReaderT (a $ q u) e
     where q u (ReaderT b) = ReaderT (u . b)
   uninterruptibleMask a =
-    ReaderT $ \e -> uninterruptibleMask $ \u -> Reader.runReaderT (a $ q u) e
+    ReaderT $ \e -> uninterruptibleMask $ \u -> runReaderT (a $ q u) e
       where q u (ReaderT b) = ReaderT (u . b)
 
 instance (MonadThrow m, Monoid w) => MonadThrow (StrictW.WriterT w m) where
