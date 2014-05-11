@@ -52,9 +52,9 @@ test-suite exceptions-tests
   type: exitcode-stdio-1.0
   build-depends:
     base                       >= 4.3      && < 5,
-    transformers               >= 0.2      && < 0.4,
-    mtl                        >= 2.0      && < 2.2,
+    transformers               >= 0.2,
+    mtl                        >= 2.0,
 
-    test-framework             >= 0.8      && < 0.9,
-    test-framework-quickcheck2 >= 0.3      && < 0.4,
-    QuickCheck                 >= 2.5      && < 2.8
+    test-framework             >= 0.8,
+    test-framework-quickcheck2 >= 0.3,
+    QuickCheck                 >= 2.5
