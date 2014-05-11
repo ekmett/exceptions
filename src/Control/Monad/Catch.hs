@@ -37,7 +37,7 @@
 -- This is very similar to 'ErrorT' and 'MonadError', but based on features of
 -- "Control.Exception". In particular, it handles the complex case of
 -- asynchronous exceptions by including 'mask' in the typeclass. Note that the
--- extensible extensions feature relies the RankNTypes language extension.
+-- extensible extensions feature relies on the RankNTypes language extension.
 --------------------------------------------------------------------
 
 module Control.Monad.Catch (
