@@ -12,7 +12,7 @@ bug-reports:   http://github.com/ekmett/exceptions/issues
 copyright:     Copyright (C) 2013-2014 Edward A. Kmett
                Copyright (C) 2012 Google Inc.
 build-type:    Simple
-tested-with:   GHC == 7.4.1, GHC == 7.6.1
+tested-with:   GHC == 7.4.1, GHC == 7.6.1, GHC == 7.8.2
 synopsis:      Extensible optionally-pure exceptions
 description:   Extensible optionally-pure exceptions
 
@@ -51,10 +51,9 @@ test-suite exceptions-tests
   ghc-options: -Wall -fwarn-tabs
   type: exitcode-stdio-1.0
   build-depends:
-    base                       >= 4.3      && < 5,
-    transformers               >= 0.2      && < 0.4,
-    mtl                        >= 2.0      && < 2.2,
-
+    base,
+    transformers,
+    mtl,
     test-framework             >= 0.8      && < 0.9,
     test-framework-quickcheck2 >= 0.3      && < 0.4,
     QuickCheck                 >= 2.5      && < 2.8
