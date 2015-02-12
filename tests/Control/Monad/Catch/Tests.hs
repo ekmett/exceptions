@@ -18,6 +18,7 @@ import Control.Monad.Reader (ReaderT(..))
 import Control.Monad.List (ListT(..))
 import Control.Monad.Trans.Maybe (MaybeT(..))
 import Control.Monad.Error (ErrorT(..))
+import Control.Monad.STM (STM, atomically)
 --import Control.Monad.Cont (ContT(..))
 import Test.Framework (Test, testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
@@ -84,6 +85,7 @@ tests = testGroup "Control.Monad.Catch.Tests" $
         , MSpec "ListT IO" $ \m -> io $ fmap (\[x] -> x) (runListT m)
         , MSpec "MaybeT IO" $ \m -> io $ fmap (maybe undefined id) (runMaybeT m)
         , MSpec "ErrorT IO" $ \m -> io $ fmap (either error id) (runErrorT m)
+        , MSpec "STM" $ io . atomically
         --, MSpec "ContT IO" $ \m -> io $ runContT m return
 
         , MSpec "CatchT Indentity" $ fromRight . runCatch

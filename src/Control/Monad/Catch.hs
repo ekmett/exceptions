@@ -81,12 +81,14 @@ import Prelude hiding (catch, foldr)
 
 import Control.Exception (Exception(..), SomeException(..))
 import qualified Control.Exception as ControlException
+import qualified Control.Monad.STM as STM
 import qualified Control.Monad.Trans.RWS.Lazy as LazyRWS
 import qualified Control.Monad.Trans.RWS.Strict as StrictRWS
 import qualified Control.Monad.Trans.State.Lazy as LazyS
 import qualified Control.Monad.Trans.State.Strict as StrictS
 import qualified Control.Monad.Trans.Writer.Lazy as LazyW
 import qualified Control.Monad.Trans.Writer.Strict as StrictW
+import Control.Monad.STM (STM)
 import Control.Monad.Trans.List (ListT(..), runListT)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 import Control.Monad.Trans.Error (ErrorT(..), Error, runErrorT)
@@ -188,6 +190,11 @@ instance MonadCatch IO where
 instance MonadMask IO where
   mask = ControlException.mask
   uninterruptibleMask = ControlException.uninterruptibleMask
+
+instance MonadThrow STM where
+  throwM = STM.throwSTM
+instance MonadCatch STM where
+  catch = STM.catchSTM
 
 instance MonadThrow m => MonadThrow (IdentityT m) where
   throwM e = lift $ throwM e
