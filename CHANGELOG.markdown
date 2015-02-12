@@ -1,3 +1,7 @@
+0.7
+---
+* `stm` support
+
 0.6
 ---
 * Split out `MonadMask`
