@@ -34,6 +34,7 @@ source-repository head
 library
   build-depends:
     base                       >= 4.3      && < 5,
+    stm                        >= 2.2      && < 3,
     transformers               >= 0.2      && < 0.5,
     mtl                        >= 2.0      && < 2.3
 
@@ -52,6 +53,7 @@ test-suite exceptions-tests
   type: exitcode-stdio-1.0
   build-depends:
     base,
+    stm,
     transformers,
     mtl,
     test-framework             >= 0.8      && < 0.9,

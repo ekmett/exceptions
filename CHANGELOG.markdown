@@ -3,6 +3,10 @@
 * Split out `MonadMask`
 * Added `transformers` 0.4 support
 
+0.5
+---
+* Added instances of `MonadThrow` for `ListT`, `MaybeT`, `ErrorT` and `ContT`.
+
 0.4
 ---
 * Factored out a separate `MonadThrow`.
