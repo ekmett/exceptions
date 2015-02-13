@@ -1,3 +1,7 @@
+0.8
+---
+* Use `transformers-compat` to allow support for `ExceptT` even on older `transformers` versions.
+
 0.7
 ---
 * `stm` support
