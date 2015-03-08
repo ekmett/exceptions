@@ -9,10 +9,10 @@ maintainer:    Edward A. Kmett <ekmett@gmail.com>
 stability:     provisional
 homepage:      http://github.com/ekmett/exceptions/
 bug-reports:   http://github.com/ekmett/exceptions/issues
-copyright:     Copyright (C) 2013-2014 Edward A. Kmett
+copyright:     Copyright (C) 2013-2015 Edward A. Kmett
                Copyright (C) 2012 Google Inc.
 build-type:    Simple
-tested-with:   GHC == 7.4.1, GHC == 7.6.1, GHC == 7.8.2
+tested-with:   GHC == 7.4.2, GHC == 7.6.3, GHC == 7.8.4, GHC == 7.10.1
 synopsis:      Extensible optionally-pure exceptions
 description:   Extensible optionally-pure exceptions
 
