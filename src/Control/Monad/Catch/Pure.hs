@@ -56,7 +56,9 @@ import Control.Applicative
 import Control.Monad.Catch
 import Control.Monad.Reader as Reader
 import Control.Monad.RWS
+#if __GLASGOW_HASKELL__ < 710
 import Data.Foldable
+#endif
 import Data.Functor.Identity
 import Data.Traversable as Traversable
 
