@@ -1,3 +1,7 @@
+0.8.0.1
+-------
+* Resolved warnings on GHC 7.10 and with transformers 0.4.
+
 0.8
 ---
 * Use `transformers-compat` to allow support for `ExceptT` even on older `transformers` versions.
