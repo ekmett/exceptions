@@ -98,8 +98,10 @@ import Control.Monad.Trans.Except (ExceptT(..), runExceptT)
 import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Identity
 import Control.Monad.Reader as Reader
-import Control.Monad.RWS
+#if __GLASGOW_HASKELL__ < 710
 import Data.Foldable
+import Data.Monoid
+#endif
 
 ------------------------------------------------------------------------------
 -- $mtl
