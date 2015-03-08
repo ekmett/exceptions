@@ -75,12 +75,6 @@ module Control.Monad.Catch (
   , SomeException(..)
   ) where
 
-#if defined(__GLASGOW_HASKELL__) && (__GLASGOW_HASKELL__ >= 706)
-import Prelude hiding (foldr)
-#else
-import Prelude hiding (catch, foldr)
-#endif
-
 import Control.Exception (Exception(..), SomeException(..))
 import qualified Control.Exception as ControlException
 import qualified Control.Monad.STM as STM
@@ -98,7 +92,12 @@ import Control.Monad.Trans.Except (ExceptT(..), runExceptT)
 import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Identity
 import Control.Monad.Reader as Reader
-#if __GLASGOW_HASKELL__ < 710
+
+#if __GLASGOW_HASKELL__ < 706
+import Prelude hiding (catch, foldr)
+import Data.Monoid
+#elif __GLASGOW_HASKELL__ < 710
+import Prelude hiding (foldr)
 import Data.Foldable
 import Data.Monoid
 #endif
