@@ -18,6 +18,8 @@
 #ifndef MIN_VERSION_mtl
 #define MIN_VERSION_mtl(x,y,z) 1
 #endif
+
+{-# OPTIONS_GHC -fno-warn-deprecations #-}
 --------------------------------------------------------------------
 -- |
 -- Copyright   :  (C) Edward Kmett 2013-2014, (c) Google Inc. 2012
