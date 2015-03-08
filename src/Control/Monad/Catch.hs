@@ -98,7 +98,6 @@ import Control.Monad.Trans.Except (ExceptT(..), runExceptT)
 import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Identity
 import Control.Monad.Reader as Reader
-import Control.Monad.Trans.Reader (runReaderT)
 import Control.Monad.RWS
 import Data.Foldable
 
