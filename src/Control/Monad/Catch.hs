@@ -95,6 +95,7 @@ import Control.Monad.Reader as Reader
 
 #if __GLASGOW_HASKELL__ < 706
 import Prelude hiding (catch, foldr)
+import Data.Foldable
 import Data.Monoid
 #elif __GLASGOW_HASKELL__ < 710
 import Prelude hiding (foldr)
