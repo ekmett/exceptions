@@ -22,7 +22,7 @@
 {-# OPTIONS_GHC -fno-warn-deprecations #-}
 --------------------------------------------------------------------
 -- |
--- Copyright   :  (C) Edward Kmett 2013-2014, (c) Google Inc. 2012
+-- Copyright   :  (C) Edward Kmett 2013-2015, (c) Google Inc. 2012
 -- License     :  BSD-style (see the file LICENSE)
 -- Maintainer  :  Edward Kmett <ekmett@gmail.com>
 -- Stability   :  experimental
