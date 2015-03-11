@@ -56,6 +56,7 @@ test-suite exceptions-tests
     base,
     stm,
     transformers,
+    transformers-compat,
     mtl,
     test-framework             >= 0.8      && < 0.9,
     test-framework-quickcheck2 >= 0.3      && < 0.4,
