@@ -93,6 +93,8 @@ import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Identity
 import Control.Monad.Reader as Reader
 
+import Language.Haskell.TH.Syntax (Q)
+
 #if __GLASGOW_HASKELL__ < 706
 import Prelude hiding (catch, foldr)
 import Data.Foldable
@@ -183,6 +185,8 @@ instance MonadThrow Maybe where
   throwM _ = Nothing
 instance e ~ SomeException => MonadThrow (Either e) where
   throwM = Left . toException
+instance MonadThrow Q where
+  throwM = fail . show
 
 instance MonadThrow IO where
   throwM = ControlException.throwIO
