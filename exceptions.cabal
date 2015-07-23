@@ -35,6 +35,7 @@ library
   build-depends:
     base                       >= 4.3      && < 5,
     stm                        >= 2.2      && < 3,
+    template-haskell           >= 2.2      && < 2.11,
     transformers               >= 0.2      && < 0.5,
     transformers-compat        >= 0.3      && < 0.5,
     mtl                        >= 2.0      && < 2.3
