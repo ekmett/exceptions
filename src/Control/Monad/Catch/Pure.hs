@@ -105,7 +105,7 @@ instance Monad m => Applicative (CatchT m) where
   (<*>) = ap
 
 instance Monad m => Monad (CatchT m) where
-  return a = CatchT (return (Right a))
+  return = pure
   CatchT m >>= k = CatchT $ m >>= \ea -> case ea of
     Left e -> return (Left e)
     Right a -> runCatchT (k a)
