@@ -1,6 +1,6 @@
 name:          exceptions
 category:      Control, Exceptions, Monad
-version:       0.8.0.2
+version:       0.8.0.3
 cabal-version: >= 1.8
 license:       BSD3
 license-file:  LICENSE
@@ -36,7 +36,7 @@ library
     base                       >= 4.3      && < 5,
     stm                        >= 2.2      && < 3,
     template-haskell           >= 2.2      && < 2.11,
-    transformers               >= 0.2      && < 0.5,
+    transformers               >= 0.2      && < 0.6,
     transformers-compat        >= 0.3      && < 0.5,
     mtl                        >= 2.0      && < 2.3
 
