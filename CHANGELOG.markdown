@@ -1,3 +1,8 @@
+0.8.1
+-----
+* Support for throwing in the `template-haskell` `Q` monad
+* Support for `transformers` 0.5
+
 0.8.0.1
 -------
 * Resolved warnings on GHC 7.10 and with transformers 0.4.
