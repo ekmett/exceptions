@@ -88,7 +88,8 @@ tests = testGroup "Control.Monad.Catch.Tests" $
         , MSpec "STM" $ io . atomically
         --, MSpec "ContT IO" $ \m -> io $ runContT m return
 
-        , MSpec "CatchT Indentity" $ fromRight . runCatch
+        , MSpec "CatchT Identity" $ fromRight . runCatch
+        , MSpec "Either SomeException" fromRight
         ]
 
     tfst :: (Property, ()) -> Property = fst
