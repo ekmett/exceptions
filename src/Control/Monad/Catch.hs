@@ -183,8 +183,6 @@ instance MonadThrow [] where
   throwM _ = []
 instance MonadThrow Maybe where
   throwM _ = Nothing
-instance e ~ SomeException => MonadThrow (Either e) where
-  throwM = Left . toException
 instance MonadThrow Q where
   throwM = fail . show
 
@@ -200,6 +198,20 @@ instance MonadThrow STM where
   throwM = STM.throwSTM
 instance MonadCatch STM where
   catch = STM.catchSTM
+
+instance e ~ SomeException => MonadThrow (Either e) where
+  throwM = Left . toException
+-- | @since 0.8.3
+instance e ~ SomeException => MonadCatch (Either e) where
+  catch (Left e) f =
+    case fromException e of
+      Nothing -> Left e
+      Just e' -> f e'
+  catch x@(Right _) _ = x
+-- | @since 0.8.3
+instance e ~ SomeException => MonadMask (Either e) where
+  mask f = f id
+  uninterruptibleMask f = f id
 
 instance MonadThrow m => MonadThrow (IdentityT m) where
   throwM e = lift $ throwM e

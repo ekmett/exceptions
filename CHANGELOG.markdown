@@ -1,3 +1,7 @@
+0.8.3
+-----
+* `MonadCatch` and `MonadMask` instances for `Either SomeException`
+
 0.8.1
 -----
 * Support for throwing in the `template-haskell` `Q` monad
