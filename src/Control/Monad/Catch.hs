@@ -336,6 +336,15 @@ instance (Error e, MonadThrow m) => MonadThrow (ErrorT e m) where
 -- | Catches exceptions from the base monad.
 instance (Error e, MonadCatch m) => MonadCatch (ErrorT e m) where
   catch (ErrorT m) f = ErrorT $ catch m (runErrorT . f)
+-- | Masks exceptions in the base monad
+instance (Error e, MonadMask m) => MonadMask (ErrorT e m) where 
+  mask h = ErrorT $ mask $ \u -> runErrorT (h $ q u)
+    where q :: (m (Either e a) -> m (Either e a)) -> ErrorT e m a -> ErrorT e m a
+          q u (ErrorT b) = ErrorT (u b)
+
+  uninterruptibleMask h = ErrorT $ uninterruptibleMask $ \u -> runErrorT (h $ q u)
+    where q :: (m (Either e a) -> m (Either e a)) -> ErrorT e m a -> ErrorT e m a
+          q u (ErrorT b) = ErrorT (u b)
 
 -- | Throws exceptions into the base monad.
 instance MonadThrow m => MonadThrow (ExceptT e m) where
@@ -343,6 +352,15 @@ instance MonadThrow m => MonadThrow (ExceptT e m) where
 -- | Catches exceptions from the base monad.
 instance MonadCatch m => MonadCatch (ExceptT e m) where
   catch (ExceptT m) f = ExceptT $ catch m (runExceptT . f)
+-- | Masks exceptions in the base monad
+instance MonadMask m => MonadMask (ExceptT e m) where 
+  mask h = ExceptT $ mask $ \u -> runExceptT (h $ q u)
+    where q :: (m (Either e a) -> m (Either e a)) -> ExceptT e m a -> ExceptT e m a
+          q u (ExceptT b) = ExceptT (u b)
+
+  uninterruptibleMask h = ExceptT $ uninterruptibleMask $ \u -> runExceptT (h $ q u)
+    where q :: (m (Either e a) -> m (Either e a)) -> ExceptT e m a -> ExceptT e m a
+          q u (ExceptT b) = ExceptT (u b)
 
 instance MonadThrow m => MonadThrow (ContT r m) where
   throwM = lift . throwM
