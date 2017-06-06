@@ -1,3 +1,8 @@
+0.9.0
+-----
+* Add `generalBracket` to the `MonadMask` typeclass, allowing more
+  valid instances
+
 0.8.3
 -----
 * `MonadCatch` and `MonadMask` instances for `Either SomeException`
