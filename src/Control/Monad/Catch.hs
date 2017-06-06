@@ -444,6 +444,31 @@ instance (Error e, MonadThrow m) => MonadThrow (ErrorT e m) where
 -- | Catches exceptions from the base monad.
 instance (Error e, MonadCatch m) => MonadCatch (ErrorT e m) where
   catch (ErrorT m) f = ErrorT $ catch m (runErrorT . f)
+instance (Error e, MonadMask m) => MonadMask (ErrorT e m) where
+  mask f = ErrorT $ mask $ \u -> runErrorT $ f (q u)
+    where
+      q :: (m (Either e a) -> m (Either e a))
+        -> ErrorT e m a -> ErrorT e m a
+      q u (ErrorT b) = ErrorT (u b)
+  uninterruptibleMask f = ErrorT $ uninterruptibleMask $ \u -> runErrorT $ f (q u)
+    where
+      q :: (m (Either e a) -> m (Either e a))
+        -> ErrorT e m a -> ErrorT e m a
+      q u (ErrorT b) = ErrorT (u b)
+
+  generalBracket acquire release cleanup use = ErrorT $
+    generalBracket
+      (runErrorT acquire)
+      (\eresource eresult ->
+        case (eresource, eresult) of
+          (Left e, _) -> return $ Left e
+          (_, Left e) -> return $ Left e
+          (Right resource, Right result) -> runErrorT (release resource result))
+      (\eresource e ->
+         case eresource of
+           Left _ -> throwM e
+           Right resource -> runErrorT (cleanup resource e))
+      (either (return . Left) (runErrorT . use))
 
 -- | Throws exceptions into the base monad.
 instance MonadThrow m => MonadThrow (ExceptT e m) where
@@ -451,6 +476,31 @@ instance MonadThrow m => MonadThrow (ExceptT e m) where
 -- | Catches exceptions from the base monad.
 instance MonadCatch m => MonadCatch (ExceptT e m) where
   catch (ExceptT m) f = ExceptT $ catch m (runExceptT . f)
+instance MonadMask m => MonadMask (ExceptT e m) where
+  mask f = ExceptT $ mask $ \u -> runExceptT $ f (q u)
+    where
+      q :: (m (Either e a) -> m (Either e a))
+        -> ExceptT e m a -> ExceptT e m a
+      q u (ExceptT b) = ExceptT (u b)
+  uninterruptibleMask f = ExceptT $ uninterruptibleMask $ \u -> runExceptT $ f (q u)
+    where
+      q :: (m (Either e a) -> m (Either e a))
+        -> ExceptT e m a -> ExceptT e m a
+      q u (ExceptT b) = ExceptT (u b)
+
+  generalBracket acquire release cleanup use = ExceptT $
+    generalBracket
+      (runExceptT acquire)
+      (\eresource eresult ->
+        case (eresource, eresult) of
+          (Left e, _) -> return $ Left e
+          (_, Left e) -> return $ Left e
+          (Right resource, Right result) -> runExceptT (release resource result))
+      (\eresource e ->
+         case eresource of
+           Left _ -> throwM e
+           Right resource -> runExceptT (cleanup resource e))
+      (either (return . Left) (runExceptT . use))
 
 instance MonadThrow m => MonadThrow (ContT r m) where
   throwM = lift . throwM

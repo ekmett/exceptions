@@ -2,6 +2,7 @@
 -----
 * Add `generalBracket` to the `MonadMask` typeclass, allowing more
   valid instances
+* Add `MonadMask` instances for `ExceptT` and `ErrorT`
 
 0.8.3
 -----
