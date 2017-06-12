@@ -181,7 +181,7 @@ class MonadCatch m => MonadMask m where
   -- | A generalized version of the standard bracket function which
   -- allows distinguishing different exit cases.
   --
-  -- @since 0.8.4
+  -- @since 0.9.0
   generalBracket
     :: m a
     -- ^ acquire some resource
@@ -239,7 +239,7 @@ instance e ~ SomeException => MonadMask (Either e) where
       Right resource ->
         case use resource of
           Left e -> cleanup resource e >> Left e
-          Right result -> release resource result >> return result
+          Right result -> release resource result
 
 instance MonadThrow m => MonadThrow (IdentityT m) where
   throwM e = lift $ throwM e
@@ -605,6 +605,12 @@ onException action handler = action `catchAll` \e -> handler >> throwM e
 --
 -- If an exception occurs during the use, the release still happens before the
 -- exception is rethrown.
+--
+-- Note that this is essentially a type-specialized version of
+-- 'generalBracket'. This function has a more common signature (matching the
+-- signature from "Control.Exception"), and is often more convenient to use. By
+-- contrast, 'generalBracket' is more expressive, allowing us to implement
+-- other functions like 'bracketOnError'.
 bracket :: MonadMask m => m a -> (a -> m b) -> (a -> m c) -> m c
 bracket acquire release use = generalBracket
   acquire
