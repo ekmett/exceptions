@@ -178,8 +178,14 @@ class MonadCatch m => MonadMask m where
   -- and/or unkillable.
   uninterruptibleMask :: ((forall a. m a -> m a) -> m b) -> m b
 
-  -- | A generalized version of the standard bracket function which
-  -- allows distinguishing different exit cases.
+  -- | A generalized version of the standard bracket function which allows
+  -- distinguishing different exit cases. Instead of providing it a single
+  -- cleanup action, this function takes two different actions: one for the
+  -- case of a successful run of the inner function, and one in the case of an
+  -- exception. The former function is provided the acquired value and the
+  -- inner function's result, and returns a new result value. The exception
+  -- cleanup function is provided both the acquired value and the exception
+  -- that was thrown.
   --
   -- @since 0.9.0
   generalBracket
