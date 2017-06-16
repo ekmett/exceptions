@@ -191,13 +191,13 @@ class MonadCatch m => MonadMask m where
   generalBracket
     :: m a
     -- ^ acquire some resource
-    -> (a -> b -> m b)
+    -> (a -> b -> m c)
     -- ^ cleanup, no exception thrown
     -> (a -> SomeException -> m ignored)
     -- ^ cleanup, some exception thrown. The exception will be rethrown
     -> (a -> m b)
     -- ^ inner action to perform with the resource
-    -> m b
+    -> m c
 
 instance MonadThrow [] where
   throwM _ = []
