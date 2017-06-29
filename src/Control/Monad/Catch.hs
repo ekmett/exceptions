@@ -194,7 +194,7 @@ class MonadCatch m => MonadMask m where
     -> (a -> b -> m c)
     -- ^ cleanup, no exception thrown
     -> (a -> SomeException -> m ignored)
-    -- ^ cleanup, some exception thrown. The exception will be rethrown
+    -- ^ cleanup, some exception thrown; the exception will be rethrown
     -> (a -> m b)
     -- ^ inner action to perform with the resource
     -> m c
