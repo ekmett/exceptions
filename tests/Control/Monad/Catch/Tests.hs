@@ -11,16 +11,21 @@ import Prelude hiding (catch)
 #endif
 
 import Control.Applicative ((<*>))
+import Control.Monad (unless)
 import Data.Data (Data, Typeable)
+import Data.IORef (newIORef, writeIORef, readIORef)
 
+import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Identity (IdentityT(..))
 import Control.Monad.Reader (ReaderT(..))
 import Control.Monad.List (ListT(..))
 import Control.Monad.Trans.Maybe (MaybeT(..))
 import Control.Monad.Error (ErrorT(..))
+import Control.Monad.Except (ExceptT(..), runExceptT)
 import Control.Monad.STM (STM, atomically)
 --import Control.Monad.Cont (ContT(..))
 import Test.Framework (Test, testGroup)
+import Test.Framework.Providers.HUnit (testCase)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.QuickCheck (Property, once)
 import Test.QuickCheck.Monadic (monadic, run, assert)
@@ -67,9 +72,11 @@ testCatchJust MSpec { mspecRunner } = monadic mspecRunner $ do
 
 tests :: Test
 tests = testGroup "Control.Monad.Catch.Tests" $
-    [ mkMonadCatch
+   ([ mkMonadCatch
     , mkCatchJust
-    ] <*> mspecs
+    ] <*> mspecs) ++
+    [ testCase "ExceptT+Left" exceptTLeft
+    ]
   where
     mspecs =
         [ MSpec "IO" io
@@ -102,3 +109,9 @@ tests = testGroup "Control.Monad.Catch.Tests" $
 
     mkTestType name test = \spec ->
         testProperty (name ++ " " ++ mspecName spec) $ once $ test spec
+
+    exceptTLeft = do
+      ref <- newIORef False
+      Left () <- runExceptT $ ExceptT (return $ Left ()) `finally` lift (writeIORef ref True)
+      val <- readIORef ref
+      unless val $ error "Looks like cleanup didn't happen"
