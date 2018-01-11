@@ -12,9 +12,9 @@ bug-reports:   http://github.com/ekmett/exceptions/issues
 copyright:     Copyright (C) 2013-2015 Edward A. Kmett
                Copyright (C) 2012 Google Inc.
 build-type:    Simple
-tested-with:   GHC == 7.0.4, GHC == 7.2.2, GHC == 7.4.2, GHC == 7.6.3, GHC == 7.8.4, GHC == 7.10.3, GHC == 8.0.2, GHC == 8.2.2
+tested-with:   GHC == 7.0.4, GHC == 7.2.2, GHC == 7.4.2, GHC == 7.6.3, GHC == 7.8.4, GHC == 7.10.3, GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.1
 synopsis:      Extensible optionally-pure exceptions
-description:   Extensible optionally-pure exceptions
+description:   Extensible optionally-pure exceptions.
 
 extra-source-files:
   .travis.yml
