@@ -169,7 +169,9 @@ instance Monad m => MonadMask (CatchT m) where
           Left e -> do
             _ <- runCatchT (cleanup resource e)
             return $ Left e
-          Right result -> runCatchT (release resource result)
+          Right result -> do
+            _ <- runCatchT (release resource)
+            return $ Right result
 
 instance MonadState s m => MonadState s (CatchT m) where
   get = lift get
