@@ -180,21 +180,21 @@ class MonadCatch m => MonadMask m where
 
   -- | A generalized version of the standard bracket function which allows
   -- distinguishing different exit cases. Instead of providing it a single
-  -- cleanup action, this function takes two different actions: one for the
+  -- release action, this function takes two different actions: one for the
   -- case of a successful run of the inner function, and one in the case of an
-  -- exception. The former function is provided the acquired value and the
-  -- inner function's result, and returns a new result value. The exception
-  -- cleanup function is provided both the acquired value and the exception
-  -- that was thrown.
+  -- exception. The former function is provided the acquired value, while
+  -- the exception release function is provided both the acquired value and
+  -- the exception that was thrown. The result values of both of these
+  -- functions are ignored.
   --
   -- @since 0.9.0
   generalBracket
     :: m a
     -- ^ acquire some resource
     -> (a -> m ignored1)
-    -- ^ cleanup, no exception thrown
+    -- ^ release, no exception thrown
     -> (a -> SomeException -> m ignored2)
-    -- ^ cleanup, some exception thrown; the exception will be rethrown
+    -- ^ release, some exception thrown; the exception will be rethrown
     -> (a -> m b)
     -- ^ inner action to perform with the resource
     -> m b
