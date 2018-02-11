@@ -187,6 +187,57 @@ class MonadCatch m => MonadMask m where
   -- the exception that was thrown. The result values of both of these
   -- functions are ignored.
   --
+  -- /NOTE/ This method was added in version 0.9.0 of this
+  -- library. Previously, implementation of functions like 'bracket'
+  -- and 'finally' in this module were based on the 'mask' and
+  -- 'uninterruptibleMask' functions only, disallowing some classes of
+  -- tranformers from having @MonadMask@ instances (notably
+  -- multi-exit-point transformers like 'ExceptT'). If you are a
+  -- library author, you'll now need to provide an implementation for
+  -- this method. As two examples, here is a @ReaderT@ implementation:
+  --
+  -- @
+  -- generalBracket acquire release cleanup use = ReaderT $ \r ->
+  --   generalBracket
+  --     (runReaderT acquire r)
+  --     (\resource -> runReaderT (release resource) r)
+  --     (\resource e -> runReaderT (cleanup resource e) r)
+  --     (\resource -> runReaderT (use resource) r)
+  -- @
+  --
+  -- This implementation reuses the base monad's @generalBracket@, and
+  -- simply uses the @ReaderT@ environment to run the relevant
+  -- @acquire@, @release@, @cleanup@ (for exceptions), and @use@
+  -- actions. A more complicated example is the implementation for
+  -- @ExceptT@, which must implement @ExceptT@'s short-circuit logic
+  -- itself:
+  --
+  -- @
+  -- generalBracket acquire release cleanup use = ExceptT $
+  --   generalBracket
+  --     (runExceptT acquire)
+  --     (\eresource ->
+  --       case eresource of
+  --         Left _ -> return ()
+  --         Right resource -> runExceptT (release resource) >> return ())
+  --     (\eresource e ->
+  --        case eresource of
+  --          Left _ -> return ()
+  --          Right resource -> runExceptT (cleanup resource e) >> return ())
+  --     (either (return . Left) (runExceptT . use))
+  -- @
+  --
+  -- In this implementation, we need to deal with the potential that
+  -- the @acquire@ action returned a @Left@ (as opposed to succeeding
+  -- with a @Right@ or throwing an exception via @throwM@), and
+  -- therefore have to handle the @Left@ case explicitly when provide
+  -- @release@, @cleanup@, and @use@ actions to the base monad's
+  -- implementation of @generalBracket@.
+  --
+  -- You should ensure that in all cases of the @acquire@ action
+  -- completing successfully, either the @release@ or @cleanup@
+  -- actions are called, regardless of what occurs in @use@.
+  --
   -- @since 0.9.0
   generalBracket
     :: m a
