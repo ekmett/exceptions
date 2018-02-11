@@ -474,8 +474,8 @@ instance (Error e, MonadMask m) => MonadMask (ErrorT e m) where
           Right resource -> runErrorT (release resource) >> return ())
       (\eresource e ->
          case eresource of
-           Left _ -> throwM e
-           Right resource -> runErrorT (cleanup resource e))
+           Left _ -> return ()
+           Right resource -> runErrorT (cleanup resource e) >> return ())
       (either (return . Left) (runErrorT . use))
 
 -- | Throws exceptions into the base monad.
@@ -505,8 +505,8 @@ instance MonadMask m => MonadMask (ExceptT e m) where
           Right resource -> runExceptT (release resource) >> return ())
       (\eresource e ->
          case eresource of
-           Left _ -> throwM e
-           Right resource -> runExceptT (cleanup resource e))
+           Left _ -> return ()
+           Right resource -> runExceptT (cleanup resource e) >> return ())
       (either (return . Left) (runExceptT . use))
 
 instance MonadThrow m => MonadThrow (ContT r m) where
