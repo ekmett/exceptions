@@ -1,7 +1,11 @@
 0.9.0
 -----
 * Add `generalBracket` to the `MonadMask` typeclass, allowing more
-  valid instances
+  valid instances.
+
+  Note that functions such as `bracket` and `finally` are now based off of
+  `generalBracket`, so if you are a library author that provides a `MonadMask`
+  instance, you will need to provide an implementation of this method.
 * Add `MonadMask` instances for `ExceptT` and `ErrorT`
 
 0.8.3
