@@ -45,20 +45,22 @@ data TestException = TestException String
 
 instance Exception TestException
 
-data MSpec = forall m. (MonadCatch m) => MSpec
+data MSpec m = MSpec
     { mspecName :: String
     , mspecRunner :: (m Property -> Property)
     }
 
-testMonadCatch :: MSpec -> Property
-testMonadCatch MSpec { mspecRunner } = monadic mspecRunner $
+data SomeMSpec = forall m. (MonadCatch m) => SomeMSpec (MSpec m)
+
+testMonadCatch :: SomeMSpec -> Property
+testMonadCatch (SomeMSpec MSpec { mspecRunner }) = monadic mspecRunner $
     run $ catch failure handler
   where
     failure = throwM (TestException "foo") >> error "testMonadCatch"
     handler (_ :: TestException) = return ()
 
-testCatchJust :: MSpec -> Property
-testCatchJust MSpec { mspecRunner } = monadic mspecRunner $ do
+testCatchJust :: SomeMSpec -> Property
+testCatchJust (SomeMSpec MSpec { mspecRunner }) = monadic mspecRunner $ do
     nice <- run $ catchJust testException posFailure posHandler
     assert $ nice == ("pos", True)
     bad <- run $ catch (catchJust testException negFailure posHandler) negHandler
@@ -79,24 +81,24 @@ tests = testGroup "Control.Monad.Catch.Tests" $
     ]
   where
     mspecs =
-        [ MSpec "IO" io
-        , MSpec "IdentityT IO" $ io . runIdentityT
-        , MSpec "LazyState.StateT IO" $ io . flip LazyState.evalStateT ()
-        , MSpec "StrictState.StateT IO" $ io . flip StrictState.evalStateT ()
-        , MSpec "ReaderT IO" $ io . flip runReaderT ()
-        , MSpec "LazyWriter.WriterT IO" $ io . fmap tfst . LazyWriter.runWriterT
-        , MSpec "StrictWriter.WriterT IO" $ io . fmap tfst . StrictWriter.runWriterT
-        , MSpec "LazyRWS.RWST IO" $ \m -> io $ fmap tfst $ LazyRWS.evalRWST m () ()
-        , MSpec "StrictRWS.RWST IO" $ \m -> io $ fmap tfst $ StrictRWS.evalRWST m () ()
+        [ SomeMSpec $ MSpec "IO" io
+        , SomeMSpec $ MSpec "IdentityT IO" $ io . runIdentityT
+        , SomeMSpec $ MSpec "LazyState.StateT IO" $ io . flip LazyState.evalStateT ()
+        , SomeMSpec $ MSpec "StrictState.StateT IO" $ io . flip StrictState.evalStateT ()
+        , SomeMSpec $ MSpec "ReaderT IO" $ io . flip runReaderT ()
+        , SomeMSpec $ MSpec "LazyWriter.WriterT IO" $ io . fmap tfst . LazyWriter.runWriterT
+        , SomeMSpec $ MSpec "StrictWriter.WriterT IO" $ io . fmap tfst . StrictWriter.runWriterT
+        , SomeMSpec $ MSpec "LazyRWS.RWST IO" $ \m -> io $ fmap tfst $ LazyRWS.evalRWST m () ()
+        , SomeMSpec $ MSpec "StrictRWS.RWST IO" $ \m -> io $ fmap tfst $ StrictRWS.evalRWST m () ()
 
-        , MSpec "ListT IO" $ \m -> io $ fmap (\[x] -> x) (runListT m)
-        , MSpec "MaybeT IO" $ \m -> io $ fmap (maybe undefined id) (runMaybeT m)
-        , MSpec "ErrorT IO" $ \m -> io $ fmap (either error id) (runErrorT m)
-        , MSpec "STM" $ io . atomically
-        --, MSpec "ContT IO" $ \m -> io $ runContT m return
+        , SomeMSpec $ MSpec "ListT IO" $ \m -> io $ fmap (\[x] -> x) (runListT m)
+        , SomeMSpec $ MSpec "MaybeT IO" $ \m -> io $ fmap (maybe undefined id) (runMaybeT m)
+        , SomeMSpec $ MSpec "ErrorT IO" $ \m -> io $ fmap (either error id) (runErrorT m)
+        , SomeMSpec $ MSpec "STM" $ io . atomically
+        --, SomeMSpec $ MSpec "ContT IO" $ \m -> io $ runContT m return
 
-        , MSpec "CatchT Identity" $ fromRight . runCatch
-        , MSpec "Either SomeException" fromRight
+        , SomeMSpec $ MSpec "CatchT Identity" $ fromRight . runCatch
+        , SomeMSpec $ MSpec "Either SomeException" fromRight
         ]
 
     tfst :: (Property, ()) -> Property = fst
@@ -107,8 +109,9 @@ tests = testGroup "Control.Monad.Catch.Tests" $
     mkMonadCatch = mkTestType "MonadCatch" testMonadCatch
     mkCatchJust = mkTestType "catchJust" testCatchJust
 
-    mkTestType name test = \spec ->
-        testProperty (name ++ " " ++ mspecName spec) $ once $ test spec
+    mkTestType :: String -> (SomeMSpec -> Property) -> SomeMSpec -> Test
+    mkTestType name test = \someMSpec@(SomeMSpec spec) ->
+        testProperty (name ++ " " ++ mspecName spec) $ once $ test someMSpec
 
     exceptTLeft = do
       ref <- newIORef False
