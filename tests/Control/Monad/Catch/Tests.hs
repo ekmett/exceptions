@@ -81,25 +81,73 @@ tests = testGroup "Control.Monad.Catch.Tests" $
     ]
   where
     mspecs =
-        [ SomeMSpec $ MSpec "IO" io
-        , SomeMSpec $ MSpec "IdentityT IO" $ io . runIdentityT
-        , SomeMSpec $ MSpec "LazyState.StateT IO" $ io . flip LazyState.evalStateT ()
-        , SomeMSpec $ MSpec "StrictState.StateT IO" $ io . flip StrictState.evalStateT ()
-        , SomeMSpec $ MSpec "ReaderT IO" $ io . flip runReaderT ()
-        , SomeMSpec $ MSpec "LazyWriter.WriterT IO" $ io . fmap tfst . LazyWriter.runWriterT
-        , SomeMSpec $ MSpec "StrictWriter.WriterT IO" $ io . fmap tfst . StrictWriter.runWriterT
-        , SomeMSpec $ MSpec "LazyRWS.RWST IO" $ \m -> io $ fmap tfst $ LazyRWS.evalRWST m () ()
-        , SomeMSpec $ MSpec "StrictRWS.RWST IO" $ \m -> io $ fmap tfst $ StrictRWS.evalRWST m () ()
+        [ SomeMSpec mspecIO
+        , SomeMSpec mspecIdentityTIO
+        , SomeMSpec mspecLazyStateTIO
+        , SomeMSpec mspecStrictStateTIO
+        , SomeMSpec mspecReaderTIO
+        , SomeMSpec mspecLazyWriterTIO
+        , SomeMSpec mspecStrictWriterTIO
+        , SomeMSpec mspecLazyRWSTIO
+        , SomeMSpec mspecStrictRWSTIO
 
-        , SomeMSpec $ MSpec "ListT IO" $ \m -> io $ fmap (\[x] -> x) (runListT m)
-        , SomeMSpec $ MSpec "MaybeT IO" $ \m -> io $ fmap (maybe undefined id) (runMaybeT m)
-        , SomeMSpec $ MSpec "ErrorT IO" $ \m -> io $ fmap (either error id) (runErrorT m)
-        , SomeMSpec $ MSpec "STM" $ io . atomically
-        --, SomeMSpec $ MSpec "ContT IO" $ \m -> io $ runContT m return
+        , SomeMSpec mspecListTIO
+        , SomeMSpec mspecMaybeTIO
+        , SomeMSpec mspecErrorTIO
+        , SomeMSpec mspecSTM
+        --, SomeMSpec mspecContTIO
 
-        , SomeMSpec $ MSpec "CatchT Identity" $ fromRight . runCatch
-        , SomeMSpec $ MSpec "Either SomeException" fromRight
+        , SomeMSpec mspecCatchTIdentity
+        , SomeMSpec mspecEitherSomeException
         ]
+
+    mspecIO :: MSpec IO
+    mspecIO = MSpec "IO" io
+
+    mspecIdentityTIO :: MSpec (IdentityT IO)
+    mspecIdentityTIO = MSpec "IdentityT IO" $ io . runIdentityT
+
+    mspecLazyStateTIO :: MSpec (LazyState.StateT () IO)
+    mspecLazyStateTIO = MSpec "LazyState.StateT IO" $ io . flip LazyState.evalStateT ()
+
+    mspecStrictStateTIO :: MSpec (StrictState.StateT () IO)
+    mspecStrictStateTIO = MSpec "StrictState.StateT IO" $ io . flip StrictState.evalStateT ()
+
+    mspecReaderTIO :: MSpec (ReaderT () IO)
+    mspecReaderTIO = MSpec "ReaderT IO" $ io . flip runReaderT ()
+
+    mspecLazyWriterTIO :: MSpec (LazyWriter.WriterT () IO)
+    mspecLazyWriterTIO = MSpec "LazyWriter.WriterT IO" $ io . fmap tfst . LazyWriter.runWriterT
+
+    mspecStrictWriterTIO :: MSpec (StrictWriter.WriterT () IO)
+    mspecStrictWriterTIO = MSpec "StrictWriter.WriterT IO" $ io . fmap tfst . StrictWriter.runWriterT
+
+    mspecLazyRWSTIO :: MSpec (LazyRWS.RWST () () () IO)
+    mspecLazyRWSTIO = MSpec "LazyRWS.RWST IO" $ \m -> io $ fmap tfst $ LazyRWS.evalRWST m () ()
+
+    mspecStrictRWSTIO :: MSpec (StrictRWS.RWST () () () IO)
+    mspecStrictRWSTIO = MSpec "StrictRWS.RWST IO" $ \m -> io $ fmap tfst $ StrictRWS.evalRWST m () ()
+
+    mspecListTIO :: MSpec (ListT IO)
+    mspecListTIO = MSpec "ListT IO" $ \m -> io $ fmap (\[x] -> x) (runListT m)
+
+    mspecMaybeTIO :: MSpec (MaybeT IO)
+    mspecMaybeTIO = MSpec "MaybeT IO" $ \m -> io $ fmap (maybe undefined id) (runMaybeT m)
+
+    mspecErrorTIO :: MSpec (ErrorT String IO)
+    mspecErrorTIO = MSpec "ErrorT IO" $ \m -> io $ fmap (either error id) (runErrorT m)
+
+    mspecSTM :: MSpec STM
+    mspecSTM = MSpec "STM" $ io . atomically
+
+    --mspecContTIO :: MSpec (ContT () IO)
+    --mspecContTIO = MSpec "ContT IO" $ \m -> io $ runContT m return
+
+    mspecCatchTIdentity :: MSpec Catch
+    mspecCatchTIdentity = MSpec "Catch" $ fromRight . runCatch
+
+    mspecEitherSomeException :: MSpec (Either SomeException)
+    mspecEitherSomeException = MSpec "Either SomeException" fromRight
 
     tfst :: (Property, ()) -> Property = fst
     fromRight (Left _) = error "fromRight"
