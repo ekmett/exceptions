@@ -97,6 +97,7 @@ tests = testGroup "Control.Monad.Catch.Tests" $
    ([ mkDetectableEffect
     ] <*> detectableEffects) ++
     [ testCase "ExceptT+Left" exceptTLeft
+    , testCase "release error wins" releaseErrorWins
     ]
   where
     mspecs =
@@ -224,3 +225,8 @@ tests = testGroup "Control.Monad.Catch.Tests" $
       Left () <- runExceptT $ ExceptT (return $ Left ()) `finally` lift (writeIORef ref True)
       val <- readIORef ref
       unless val $ error "Looks like cleanup didn't happen"
+
+    -- if both 'use' and 'release' abort, the 'release' error should win
+    releaseErrorWins = do
+      Left val <- runExceptT $ ExceptT (return $ Left False) `finally` ExceptT (return $ Left True)
+      unless val $ error "Looks like the 'use' error won"
