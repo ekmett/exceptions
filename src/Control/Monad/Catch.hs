@@ -249,6 +249,24 @@ class MonadCatch m => MonadMask m where
     -> (a -> m b)
     -- ^ inner action to perform with the resource
     -> m b
+  generalBracket acquire release releaseEx use = moreGeneralBracket
+    const
+    acquire
+    use
+    (\a et ->
+       case et of
+         ETException e -> releaseEx a e >> return ()
+         _ -> release a >> return ())
+
+  moreGeneralBracket
+    :: (b -> c -> d)
+    -> m a                       -- ^ acquire
+    -> (a -> m b)                -- ^ use
+    -> (a -> ExitType b -> m c)  -- ^ release
+    -> m d
+
+data ExitType a = ETSuccess a | ETException SomeException | ETOther
+
 
 instance MonadThrow [] where
   throwM _ = []
@@ -264,13 +282,13 @@ instance MonadCatch IO where
 instance MonadMask IO where
   mask = ControlException.mask
   uninterruptibleMask = ControlException.uninterruptibleMask
-  generalBracket acquire release cleanup use = mask $ \unmasked -> do
+  moreGeneralBracket f acquire use release = mask $ \unmasked -> do
     resource <- acquire
     result <- unmasked (use resource) `catch` \e -> do
-      _ <- cleanup resource e
+      _ <- release resource (ETException e)
       throwM e
-    _ <- release resource
-    return result
+    c <- release resource $ ETSuccess result
+    return $ f result c
 
 instance MonadThrow STM where
   throwM = STM.throwSTM
@@ -314,12 +332,12 @@ instance MonadMask m => MonadMask (IdentityT m) where
       where q :: (m a -> m a) -> IdentityT m a -> IdentityT m a
             q u = IdentityT . u . runIdentityT
 
-  generalBracket acquire release cleanup use = IdentityT $
-    generalBracket
+  moreGeneralBracket f acquire use release = IdentityT $
+    moreGeneralBracket
+      f
       (runIdentityT acquire)
-      (runIdentityT . release)
-      (\resource e -> runIdentityT (cleanup resource e))
-      (\resource -> runIdentityT (use resource))
+      (runIdentityT . use)
+      (\resource et -> runIdentityT (release resource et))
 
 instance MonadThrow m => MonadThrow (LazyS.StateT s m) where
   throwM e = lift $ throwM e
@@ -334,17 +352,20 @@ instance MonadMask m => MonadMask (LazyS.StateT s m) where
       where q :: (m (a, s) -> m (a, s)) -> LazyS.StateT s m a -> LazyS.StateT s m a
             q u (LazyS.StateT b) = LazyS.StateT (u . b)
 
-  generalBracket acquire release cleanup use = LazyS.StateT $ \s0 ->
-    generalBracket
+  moreGeneralBracket f acquire use release = LazyS.StateT $ \s0 ->
+    moreGeneralBracket
+      (\(b, _) (c, s) -> (f b c, s))
+
       (LazyS.runStateT acquire s0)
 
-      -- Note that we're reverting to s1 here, the state after the
-      -- acquire step, and _not_ getting the state from the successful
-      -- run of the inner action. This is because we may be on top of
-      -- something like ExceptT, where no updated state is available.
-      (\(resource, s1) -> LazyS.runStateT (release resource) s1)
-      (\(resource, s1) e -> LazyS.runStateT (cleanup resource e) s1)
       (\(resource, s1) -> LazyS.runStateT (use resource) s1)
+
+      (\(resource, s1) et ->
+         case et of
+           ETSuccess (b, s2) -> LazyS.runStateT (release resource (ETSuccess b)) s2
+           ETException e -> LazyS.runStateT (release resource (ETException e)) s1
+           ETOther -> LazyS.runStateT (release resource ETOther) s1
+      )
 
 instance MonadThrow m => MonadThrow (StrictS.StateT s m) where
   throwM e = lift $ throwM e
@@ -547,18 +568,30 @@ instance MonadMask m => MonadMask (ExceptT e m) where
         -> ExceptT e m a -> ExceptT e m a
       q u (ExceptT b) = ExceptT (u b)
 
-  generalBracket acquire release cleanup use = ExceptT $
-    generalBracket
+  moreGeneralBracket f acquire use release = ExceptT $
+    moreGeneralBracket
+      (\eb ec ->
+         case (eb, ec) of
+           (Right b, Right c) -> Right (f b c)
+           (Left e, _) -> Left e
+           (Right _, Left e) -> Left e
+      )
       (runExceptT acquire)
       (\eresource ->
-        case eresource of
-          Left _ -> return ()
-          Right resource -> runExceptT (release resource) >> return ())
-      (\eresource e ->
          case eresource of
-           Left _ -> return ()
-           Right resource -> runExceptT (cleanup resource e) >> return ())
-      (either (return . Left) (runExceptT . use))
+           Left e -> return (Left e)
+           Right resource -> runExceptT (use resource)
+      )
+      (\eresource et ->
+         case eresource of
+           Left e -> return (Left e)
+           Right resource -> runExceptT $ release resource $
+             case et of
+               ETSuccess (Left _) -> ETOther
+               ETSuccess (Right b) -> ETSuccess b
+               ETException e -> ETException e
+               ETOther -> ETOther
+      )
 
 instance MonadThrow m => MonadThrow (ContT r m) where
   throwM = lift . throwM
