@@ -50,7 +50,15 @@ data MSpec m = MSpec
     , mspecRunner :: (m Property -> Property)
     }
 
+-- the @m Bool@ determines whether the @m ()@ has executed
+data DetectableEffect m = DetectableEffect
+    { detectableEffectMSpec :: MSpec m
+    , detectableEffectEffectDetector :: m (m (), m Bool)
+    }
+
 data SomeMSpec = forall m. (MonadCatch m) => SomeMSpec (MSpec m)
+
+data SomeDetectableEffect = forall m. (MonadMask m) => SomeDetectableEffect (DetectableEffect m)
 
 testMonadCatch :: SomeMSpec -> Property
 testMonadCatch (SomeMSpec MSpec { mspecRunner }) = monadic mspecRunner $
@@ -72,11 +80,22 @@ testCatchJust (SomeMSpec MSpec { mspecRunner }) = monadic mspecRunner $ do
     posFailure = throwM (TestException "pos") >> error "testCatchJust pos"
     negFailure = throwM (TestException "neg") >> error "testCatchJust neg"
 
+testDetectableEffect :: SomeDetectableEffect -> Property
+testDetectableEffect (SomeDetectableEffect (DetectableEffect mspec effectDetector)) = do
+    monadic (mspecRunner mspec) $ do
+        effectWasPerformed <- run $ do
+          (effect, detector) <- effectDetector
+          runExceptT $ ExceptT (return $ Left ()) `finally` lift effect
+          detector
+        assert effectWasPerformed
+
 tests :: Test
 tests = testGroup "Control.Monad.Catch.Tests" $
    ([ mkMonadCatch
     , mkCatchJust
     ] <*> mspecs) ++
+   ([ mkDetectableEffect
+    ] <*> detectableEffects) ++
     [ testCase "ExceptT+Left" exceptTLeft
     ]
   where
@@ -107,11 +126,11 @@ tests = testGroup "Control.Monad.Catch.Tests" $
     mspecIdentityTIO :: MSpec (IdentityT IO)
     mspecIdentityTIO = MSpec "IdentityT IO" $ io . runIdentityT
 
-    mspecLazyStateTIO :: MSpec (LazyState.StateT () IO)
-    mspecLazyStateTIO = MSpec "LazyState.StateT IO" $ io . flip LazyState.evalStateT ()
+    mspecLazyStateTIO :: MSpec (LazyState.StateT Bool IO)
+    mspecLazyStateTIO = MSpec "LazyState.StateT IO" $ io . flip LazyState.evalStateT False
 
-    mspecStrictStateTIO :: MSpec (StrictState.StateT () IO)
-    mspecStrictStateTIO = MSpec "StrictState.StateT IO" $ io . flip StrictState.evalStateT ()
+    mspecStrictStateTIO :: MSpec (StrictState.StateT Bool IO)
+    mspecStrictStateTIO = MSpec "StrictState.StateT IO" $ io . flip StrictState.evalStateT False
 
     mspecReaderTIO :: MSpec (ReaderT () IO)
     mspecReaderTIO = MSpec "ReaderT IO" $ io . flip runReaderT ()
@@ -122,11 +141,11 @@ tests = testGroup "Control.Monad.Catch.Tests" $
     mspecStrictWriterTIO :: MSpec (StrictWriter.WriterT () IO)
     mspecStrictWriterTIO = MSpec "StrictWriter.WriterT IO" $ io . fmap tfst . StrictWriter.runWriterT
 
-    mspecLazyRWSTIO :: MSpec (LazyRWS.RWST () () () IO)
-    mspecLazyRWSTIO = MSpec "LazyRWS.RWST IO" $ \m -> io $ fmap tfst $ LazyRWS.evalRWST m () ()
+    mspecLazyRWSTIO :: MSpec (LazyRWS.RWST () () Bool IO)
+    mspecLazyRWSTIO = MSpec "LazyRWS.RWST IO" $ \m -> io $ fmap tfst $ LazyRWS.evalRWST m () False
 
-    mspecStrictRWSTIO :: MSpec (StrictRWS.RWST () () () IO)
-    mspecStrictRWSTIO = MSpec "StrictRWS.RWST IO" $ \m -> io $ fmap tfst $ StrictRWS.evalRWST m () ()
+    mspecStrictRWSTIO :: MSpec (StrictRWS.RWST () () Bool IO)
+    mspecStrictRWSTIO = MSpec "StrictRWS.RWST IO" $ \m -> io $ fmap tfst $ StrictRWS.evalRWST m () False
 
     mspecListTIO :: MSpec (ListT IO)
     mspecListTIO = MSpec "ListT IO" $ \m -> io $ fmap (\[x] -> x) (runListT m)
@@ -154,12 +173,51 @@ tests = testGroup "Control.Monad.Catch.Tests" $
     fromRight (Right a) = a
     io = morallyDubiousIOProperty
 
-    mkMonadCatch = mkTestType "MonadCatch" testMonadCatch
-    mkCatchJust = mkTestType "catchJust" testCatchJust
+    detectableEffects =
+        [ SomeDetectableEffect $ detectableEffectIO
+        , SomeDetectableEffect detectableEffectLazyStateTIO
+        , SomeDetectableEffect detectableEffectStrictStateTIO
+        , SomeDetectableEffect detectableEffectLazyRWSTIO
+        , SomeDetectableEffect detectableEffectStrictRWSTIO
+        ]
 
-    mkTestType :: String -> (SomeMSpec -> Property) -> SomeMSpec -> Test
-    mkTestType name test = \someMSpec@(SomeMSpec spec) ->
+    detectableEffectIO :: DetectableEffect IO
+    detectableEffectIO = DetectableEffect mspecIO $ do
+      ref <- newIORef False
+      pure (writeIORef ref True, readIORef ref)
+
+    detectableEffectLazyStateTIO :: DetectableEffect (LazyState.StateT Bool IO)
+    detectableEffectLazyStateTIO = DetectableEffect mspecLazyStateTIO $ do
+      LazyState.put False
+      pure (LazyState.put True, LazyState.get)
+
+    detectableEffectStrictStateTIO :: DetectableEffect (StrictState.StateT Bool IO)
+    detectableEffectStrictStateTIO = DetectableEffect mspecStrictStateTIO $ do
+      StrictState.put False
+      pure (StrictState.put True, StrictState.get)
+
+    detectableEffectLazyRWSTIO :: DetectableEffect (LazyRWS.RWST () () Bool IO)
+    detectableEffectLazyRWSTIO = DetectableEffect mspecLazyRWSTIO $ do
+      LazyRWS.put False
+      pure (LazyRWS.put True, LazyRWS.get)
+
+    detectableEffectStrictRWSTIO :: DetectableEffect (StrictRWS.RWST () () Bool IO)
+    detectableEffectStrictRWSTIO = DetectableEffect mspecStrictRWSTIO $ do
+      StrictRWS.put False
+      pure (StrictRWS.put True, StrictRWS.get)
+
+    mkMonadCatch = mkMSpecTest "MonadCatch" testMonadCatch
+    mkCatchJust = mkMSpecTest "catchJust" testCatchJust
+    mkDetectableEffect = mkDetectableEffectTest "effect during release" testDetectableEffect
+
+    mkMSpecTest :: String -> (SomeMSpec -> Property) -> SomeMSpec -> Test
+    mkMSpecTest name test = \someMSpec@(SomeMSpec spec) ->
         testProperty (name ++ " " ++ mspecName spec) $ once $ test someMSpec
+
+    mkDetectableEffectTest :: String -> (SomeDetectableEffect -> Property) -> SomeDetectableEffect -> Test
+    mkDetectableEffectTest name test = \someDetectableEffect@(SomeDetectableEffect detectableEffect) ->
+        let testName = name ++ " " ++ mspecName (detectableEffectMSpec detectableEffect)
+        in testProperty testName $ once $ test someDetectableEffect
 
     exceptTLeft = do
       ref <- newIORef False
