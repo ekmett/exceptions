@@ -153,6 +153,12 @@ class MonadThrow m => MonadCatch m where
 -- asynchronous exceptions. Continuation-based monads are invalid
 -- instances of this class.
 --
+-- Note that the @lifted-base@ package has a module named
+-- "Control.Exception.Lifted" which also provides functions like 'mask' and
+-- 'bracket'. The difference is that the @lifted-base@ implementations will
+-- discard any non-IO effect performed in the 'release' action, whereas the
+-- functions in this module will preserve those effects.
+--
 -- Instances should ensure that, in the following code:
 --
 -- > f `finally` g
