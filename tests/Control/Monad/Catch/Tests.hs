@@ -185,27 +185,27 @@ tests = testGroup "Control.Monad.Catch.Tests" $
     detectableEffectIO :: DetectableEffect IO
     detectableEffectIO = DetectableEffect mspecIO $ do
       ref <- newIORef False
-      pure (writeIORef ref True, readIORef ref)
+      return (writeIORef ref True, readIORef ref)
 
     detectableEffectLazyStateTIO :: DetectableEffect (LazyState.StateT Bool IO)
     detectableEffectLazyStateTIO = DetectableEffect mspecLazyStateTIO $ do
       LazyState.put False
-      pure (LazyState.put True, LazyState.get)
+      return (LazyState.put True, LazyState.get)
 
     detectableEffectStrictStateTIO :: DetectableEffect (StrictState.StateT Bool IO)
     detectableEffectStrictStateTIO = DetectableEffect mspecStrictStateTIO $ do
       StrictState.put False
-      pure (StrictState.put True, StrictState.get)
+      return (StrictState.put True, StrictState.get)
 
     detectableEffectLazyRWSTIO :: DetectableEffect (LazyRWS.RWST () () Bool IO)
     detectableEffectLazyRWSTIO = DetectableEffect mspecLazyRWSTIO $ do
       LazyRWS.put False
-      pure (LazyRWS.put True, LazyRWS.get)
+      return (LazyRWS.put True, LazyRWS.get)
 
     detectableEffectStrictRWSTIO :: DetectableEffect (StrictRWS.RWST () () Bool IO)
     detectableEffectStrictRWSTIO = DetectableEffect mspecStrictRWSTIO $ do
       StrictRWS.put False
-      pure (StrictRWS.put True, StrictRWS.get)
+      return (StrictRWS.put True, StrictRWS.get)
 
     mkMonadCatch = mkMSpecTest "MonadCatch" testMonadCatch
     mkCatchJust = mkMSpecTest "catchJust" testCatchJust

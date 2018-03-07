@@ -794,7 +794,7 @@ onException action handler = action `catchAll` \e -> handler >> throwM e
 -- 'onException', this works with every kind of error, not just exceptions, but
 -- it requires a 'MonadMask' instance, not just 'MonadCatch'.
 onError :: MonadMask m => m a -> m b -> m a
-onError action handler = bracketOnError (pure ()) (const handler) (const action)
+onError action handler = bracketOnError (return ()) (const handler) (const action)
 
 -- | Generalized abstracted pattern of safe resource acquisition and release
 -- in the face of errors. The first action \"acquires\" some value, which
@@ -832,7 +832,7 @@ bracketOnError acquire release use = fst <$> generalBracket
   acquire
   use
   (\a exitCase -> case exitCase of
-    ExitCaseSuccess _ -> pure ()
+    ExitCaseSuccess _ -> return ()
     _ -> do
       _ <- release a
-      pure ())
+      return ())
