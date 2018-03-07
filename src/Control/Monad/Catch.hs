@@ -586,6 +586,33 @@ instance MonadThrow m => MonadThrow (MaybeT m) where
 -- | Catches exceptions from the base monad.
 instance MonadCatch m => MonadCatch (MaybeT m) where
   catch (MaybeT m) f = MaybeT $ catch m (runMaybeT . f)
+instance MonadMask m => MonadMask (MaybeT m) where
+  mask f = MaybeT $ mask $ \u -> runMaybeT $ f (q u)
+    where
+      q :: (m (Maybe a) -> m (Maybe a))
+        -> MaybeT m a -> MaybeT m a
+      q u (MaybeT b) = MaybeT (u b)
+  uninterruptibleMask f = MaybeT $ uninterruptibleMask $ \u -> runMaybeT $ f (q u)
+    where
+      q :: (m (Maybe a) -> m (Maybe a))
+        -> MaybeT m a -> MaybeT m a
+      q u (MaybeT b) = MaybeT (u b)
+
+  generalBracket acquire use release = MaybeT $ do
+    (eb, ec) <- generalBracket
+      (runMaybeT acquire)
+      (\resourceMay -> case resourceMay of
+        Nothing -> return Nothing
+        Just resource -> runMaybeT (use resource))
+      (\resourceMay exitCase -> case resourceMay of
+        Nothing -> return Nothing -- nothing to release, acquire didn't succeed
+        Just resource -> case exitCase of
+          ExitCaseSuccess (Just b) -> runMaybeT (release resource (ExitCaseSuccess b))
+          ExitCaseException e      -> runMaybeT (release resource (ExitCaseException e))
+          _                        -> runMaybeT (release resource ExitCaseAbort))
+    -- The order in which we perform those two 'Maybe' effects doesn't matter,
+    -- since the error message is the same regardless.
+    return ((,) <$> eb <*> ec)
 
 -- | Throws exceptions into the base monad.
 instance (Error e, MonadThrow m) => MonadThrow (ErrorT e m) where
