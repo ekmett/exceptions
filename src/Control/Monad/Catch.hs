@@ -67,6 +67,7 @@ module Control.Monad.Catch (
   , try
   , tryJust
   , onException
+  , onError
   , bracket
   , bracket_
   , finally
@@ -709,6 +710,9 @@ uninterruptibleMask_ io = uninterruptibleMask $ \_ -> io
 
 -- | Catches all exceptions, and somewhat defeats the purpose of the extensible
 -- exception system. Use sparingly.
+--
+-- /NOTE/ This catches all /exceptions/, but if the monad supports other ways of
+-- aborting the computation, those other kinds of errors will not be caught.
 catchAll :: MonadCatch m => m a -> (SomeException -> m a) -> m a
 catchAll = catch
 
@@ -779,16 +783,26 @@ catches a hs = a `catch` handler
 
 -- | Run an action only if an exception is thrown in the main action. The
 -- exception is not caught, simply rethrown.
+--
+-- /NOTE/ The action is only run if an /exception/ is throw. If the monad
+-- supports other ways of aborting the computation, the action won't run if
+-- those other kinds of errors are thrown. See 'onError'.
 onException :: MonadCatch m => m a -> m b -> m a
 onException action handler = action `catchAll` \e -> handler >> throwM e
 
+-- | Run an action only if an error is thrown in the main action. Unlike
+-- 'onException', this works with every kind of error, not just exceptions, but
+-- it requires a 'MonadMask' instance, not just 'MonadCatch'.
+onError :: MonadMask m => m a -> m b -> m a
+onError action handler = bracketOnError (pure ()) (const handler) (const action)
+
 -- | Generalized abstracted pattern of safe resource acquisition and release
--- in the face of exceptions. The first action \"acquires\" some value, which
+-- in the face of errors. The first action \"acquires\" some value, which
 -- is \"released\" by the second action at the end. The third action \"uses\"
 -- the value and its result is the result of the 'bracket'.
 --
--- If an exception occurs during the use, the release still happens before the
--- exception is rethrown.
+-- If an error is thrown during the use, the release still happens before the
+-- error is rethrown.
 --
 -- Note that this is essentially a type-specialized version of
 -- 'generalBracket'. This function has a more common signature (matching the
@@ -807,18 +821,18 @@ bracket_ :: MonadMask m => m a -> m b -> m c -> m c
 bracket_ before after action = bracket before (const after) (const action)
 
 -- | Perform an action with a finalizer action that is run, even if an
--- exception occurs.
+-- error occurs.
 finally :: MonadMask m => m a -> m b -> m a
 finally action finalizer = bracket_ (return ()) finalizer action
 
--- | Like 'bracket', but only performs the final action if there was an
--- exception raised by the in-between computation.
+-- | Like 'bracket', but only performs the final action if an error is
+-- thrown by the in-between computation.
 bracketOnError :: MonadMask m => m a -> (a -> m b) -> (a -> m c) -> m c
 bracketOnError acquire release use = fst <$> generalBracket
   acquire
   use
   (\a exitCase -> case exitCase of
-    ExitCaseException _e -> do
+    ExitCaseSuccess _ -> pure ()
+    _ -> do
       _ <- release a
-      pure ()
-    _ -> pure ())
+      pure ())
