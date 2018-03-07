@@ -162,19 +162,19 @@ instance Monad m => MonadCatch (CatchT m) where
 instance Monad m => MonadMask (CatchT m) where
   mask a = a id
   uninterruptibleMask a = a id
-  generalBracket acquire release cleanup use = CatchT $ do
+  generalBracket acquire use release = CatchT $ do
     eresource <- runCatchT acquire
     case eresource of
       Left e -> return $ Left e
       Right resource -> do
-        eresult <- runCatchT (use resource)
-        case eresult of
-          Left e -> do
-            _ <- runCatchT (cleanup resource e)
-            return $ Left e
-          Right result -> do
-            _ <- runCatchT (release resource)
-            return $ Right result
+        eb <- runCatchT (use resource)
+        case eb of
+          Left e -> runCatchT $ do
+            _ <- release resource (ExitCaseException e)
+            throwM e
+          Right b -> runCatchT $ do
+            c <- release resource (ExitCaseSuccess b)
+            return (b, c)
 
 instance MonadState s m => MonadState s (CatchT m) where
   get = lift get
