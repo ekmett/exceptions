@@ -156,6 +156,9 @@ instance Monad m => MonadCatch (CatchT m) where
     Right a -> return (Right a)
 -- | Note: This instance is only valid if the underlying monad has a single
 -- exit point!
+--
+-- For example, @IO@ or @Either@ would be invalid base monads, but
+-- @Reader@ or @State@ would be acceptable.
 instance Monad m => MonadMask (CatchT m) where
   mask a = a id
   uninterruptibleMask a = a id
