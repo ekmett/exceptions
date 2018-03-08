@@ -795,6 +795,8 @@ onException action handler = action `catchAll` \e -> handler >> throwM e
 -- | Run an action only if an error is thrown in the main action. Unlike
 -- 'onException', this works with every kind of error, not just exceptions, but
 -- it requires a 'MonadMask' instance, not just 'MonadCatch'.
+--
+-- @since 0.10.0
 onError :: MonadMask m => m a -> m b -> m a
 onError action handler = bracketOnError (return ()) (const handler) (const action)
 
