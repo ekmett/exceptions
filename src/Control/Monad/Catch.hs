@@ -297,8 +297,9 @@ class MonadCatch m => MonadMask m where
 
 -- | A 'MonadMask' computation may either succeed with a value, abort with an
 -- exception, or abort for some other reason. For example, in @ExceptT e IO@
--- you can use 'throwM' to abort with an exception or
--- 'Control.Monad.Trans.Except.throwE' to abort with a value of type 'e'.
+-- you can use 'throwM' to abort with an exception ('ExitCaseException') or
+-- 'Control.Monad.Trans.Except.throwE' to abort with a value of type 'e'
+-- ('ExitCaseAbort').
 data ExitCase a
   = ExitCaseSuccess a
   | ExitCaseException SomeException
