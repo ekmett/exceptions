@@ -393,6 +393,9 @@ instance MonadMask m => MonadMask (LazyS.StateT s m) where
             q u (LazyS.StateT b) = LazyS.StateT (u . b)
 
   generalBracket acquire release use = LazyS.StateT $ \s0 -> do
+    -- This implementation is given as an example in the documentation of
+    -- 'generalBracket', so when changing it, remember to update the
+    -- documentation's copy as well
     ((b, _s2), (c, s3)) <- generalBracket
       (LazyS.runStateT acquire s0)
       (\(resource, s1) exitCase -> case exitCase of
@@ -675,6 +678,9 @@ instance MonadMask m => MonadMask (ExceptT e m) where
       q u (ExceptT b) = ExceptT (u b)
 
   generalBracket acquire release use = ExceptT $ do
+    -- This implementation is given as an example in the documentation of
+    -- 'generalBracket', so when changing it, remember to update the
+    -- documentation's copy as well
     (eb, ec) <- generalBracket
       (runExceptT acquire)
       (\eresource exitCase -> case eresource of
