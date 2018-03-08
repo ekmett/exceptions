@@ -215,7 +215,7 @@ class MonadCatch m => MonadMask m where
   -- multi-exit-point transformers like 'ExceptT'). If you are a
   -- library author, you'll now need to provide an implementation for
   -- this method. The @StateT@ implementation demonstrates most of the
-  -- subtelties:
+  -- subtleties:
   --
   -- @
   -- generalBracket acquire use release = StateT $ \s0 -> do
@@ -260,7 +260,7 @@ class MonadCatch m => MonadMask m where
   --
   -- The only effect which is intentionally not incorporated in the @release@
   -- action is the effect of throwing an error. In that case, the error must be
-  -- re-thrown. One subtelty which is easy to miss is that in the case in which
+  -- re-thrown. One subtlety which is easy to miss is that in the case in which
   -- @use@ and @release@ both throw an error, the error from @release@ should
   -- take priority. Here is an implementation for @ExceptT@ which demonstrates
   -- how to do this.
@@ -786,7 +786,7 @@ catches a hs = a `catch` handler
 -- | Run an action only if an exception is thrown in the main action. The
 -- exception is not caught, simply rethrown.
 --
--- /NOTE/ The action is only run if an /exception/ is throw. If the monad
+-- /NOTE/ The action is only run if an /exception/ is thrown. If the monad
 -- supports other ways of aborting the computation, the action won't run if
 -- those other kinds of errors are thrown. See 'onError'.
 onException :: MonadCatch m => m a -> m b -> m a
