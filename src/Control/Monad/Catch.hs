@@ -303,6 +303,7 @@ data ExitCase a
   = ExitCaseSuccess a
   | ExitCaseException SomeException
   | ExitCaseAbort
+  deriving Show
 
 instance MonadThrow [] where
   throwM _ = []
