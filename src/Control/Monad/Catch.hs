@@ -830,14 +830,14 @@ onError action handler = bracketOnError (return ()) (const handler) (const actio
 -- signature from "Control.Exception"), and is often more convenient to use. By
 -- contrast, 'generalBracket' is more expressive, allowing us to implement
 -- other functions like 'bracketOnError'.
-bracket :: MonadMask m => m a -> (a -> m b) -> (a -> m c) -> m c
+bracket :: MonadMask m => m a -> (a -> m c) -> (a -> m b) -> m b
 bracket acquire release = fmap fst . generalBracket
   acquire
   (\a _exitCase -> release a)
 
 -- | Version of 'bracket' without any value being passed to the second and
 -- third actions.
-bracket_ :: MonadMask m => m a -> m b -> m c -> m c
+bracket_ :: MonadMask m => m a -> m c -> m b -> m b
 bracket_ before after action = bracket before (const after) (const action)
 
 -- | Perform an action with a finalizer action that is run, even if an
@@ -847,7 +847,7 @@ finally action finalizer = bracket_ (return ()) finalizer action
 
 -- | Like 'bracket', but only performs the final action if an error is
 -- thrown by the in-between computation.
-bracketOnError :: MonadMask m => m a -> (a -> m b) -> (a -> m c) -> m c
+bracketOnError :: MonadMask m => m a -> (a -> m c) -> (a -> m b) -> m b
 bracketOnError acquire release = fmap fst . generalBracket
   acquire
   (\a exitCase -> case exitCase of
