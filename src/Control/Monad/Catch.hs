@@ -808,9 +808,10 @@ onException action handler = action `catchAll` \e -> handler >> throwM e
 -- example, if @f@ is an 'ExceptT' computation which aborts with a 'Left', the
 -- computation @onError f g@ will execute @g@, while @onException f g@ will not.
 --
--- For monads which, unlike 'ExceptT' and 'MaybeT', only have a single exit
--- point, there is no difference between 'onException' and 'onError', except
--- that 'onError' has a more constraining type.
+-- This distinction is only meaningful for monads which have multiple exit
+-- points, such as 'Except' and 'MaybeT'. For monads that only have a single
+-- exit point, there is no difference between 'onException' and 'onError',
+-- except that 'onError' has a more constrained type.
 --
 -- @since 0.10.0
 onError :: MonadMask m => m a -> m b -> m a
