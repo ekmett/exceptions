@@ -7,6 +7,8 @@
   effects, so if you are a library author that provides a `MonadMask` instance,
   you will need to update your implementation of this method.
 * Add `MonadMask` instance for `MaybeT`
+* Add `onError` function whose action also runs on errors which are not
+  exceptions, such as a `Nothing` or a `Left`.
 
 0.9.0
 -----
