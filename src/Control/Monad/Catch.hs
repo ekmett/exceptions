@@ -201,7 +201,10 @@ class MonadCatch m => MonadMask m where
 
   -- | A generalized version of 'bracket' which uses 'ExitCase' to distinguish
   -- the different exit cases, and returns the values of both the 'use' and
-  -- 'release' actions. You should probably use 'bracket' instead.
+  -- 'release' actions. In practice, this extra information is rarely needed,
+  -- so it is often more convenient to use one of the simpler functions which
+  -- are defined in terms of this one, such as 'bracket', 'finally', 'onError',
+  -- and 'bracketOnError'.
   --
   -- This function exists because in order to thread their effects through the
   -- execution of 'bracket', monad transformers need values to be threaded from
