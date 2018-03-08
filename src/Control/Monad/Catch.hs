@@ -595,6 +595,7 @@ instance MonadThrow m => MonadThrow (MaybeT m) where
 -- | Catches exceptions from the base monad.
 instance MonadCatch m => MonadCatch (MaybeT m) where
   catch (MaybeT m) f = MaybeT $ catch m (runMaybeT . f)
+-- | @since 0.10.0
 instance MonadMask m => MonadMask (MaybeT m) where
   mask f = MaybeT $ mask $ \u -> runMaybeT $ f (q u)
     where
@@ -665,6 +666,7 @@ instance MonadThrow m => MonadThrow (ExceptT e m) where
 -- | Catches exceptions from the base monad.
 instance MonadCatch m => MonadCatch (ExceptT e m) where
   catch (ExceptT m) f = ExceptT $ catch m (runExceptT . f)
+-- | @since 0.9.0
 instance MonadMask m => MonadMask (ExceptT e m) where
   mask f = ExceptT $ mask $ \u -> runExceptT $ f (q u)
     where
