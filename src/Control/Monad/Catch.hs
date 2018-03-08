@@ -218,10 +218,9 @@ class MonadCatch m => MonadMask m where
   -- subtleties:
   --
   -- @
-  -- generalBracket acquire use release = StateT $ \s0 -> do
+  -- generalBracket acquire release use = StateT $ \s0 -> do
   --   ((b, _s2), (c, s3)) <- generalBracket
   --     (runStateT acquire s0)
-  --     (\(resource, s1) -> runStateT (use resource) s1)
   --     (\(resource, s1) exitCase -> case exitCase of
   --       ExitCaseSuccess (b, s2) -> runStateT (release resource (ExitCaseSuccess b)) s2
   --
@@ -230,6 +229,7 @@ class MonadCatch m => MonadMask m where
   --       ExitCaseException e     -> runStateT (release resource (ExitCaseException e)) s1
   --       ExitCaseAbort           -> runStateT (release resource ExitCaseAbort) s1
   --     )
+  --     (\(resource, s1) -> runStateT (use resource) s1)
   --   return ((b, c), s3)
   -- @
   --
@@ -266,16 +266,16 @@ class MonadCatch m => MonadMask m where
   -- how to do this.
   --
   -- @
-  -- generalBracket acquire use release = ExceptT $ do
+  -- generalBracket acquire release use = ExceptT $ do
   --   (eb, ec) <- generalBracket
   --     (runExceptT acquire)
-  --     (either (return . Left) (runExceptT . use))
   --     (\eresource exitCase -> case eresource of
   --       Left e -> return (Left e) -- nothing to release, acquire didn't succeed
   --       Right resource -> case exitCase of
   --         ExitCaseSuccess (Right b) -> runExceptT (release resource (ExitCaseSuccess b))
   --         ExitCaseException e       -> runExceptT (release resource (ExitCaseException e))
   --         _                         -> runExceptT (release resource ExitCaseAbort))
+  --     (either (return . Left) (runExceptT . use))
   --   return $ do
   --     -- The order in which we perform those two 'Either' effects determines
   --     -- which error will win if they are both 'Left's. We want the error from
@@ -289,10 +289,10 @@ class MonadCatch m => MonadMask m where
   generalBracket
     :: m a
     -- ^ acquire some resource
-    -> (a -> m b)
-    -- ^ inner action to perform with the resource
     -> (a -> ExitCase b -> m c)
     -- ^ release the resource, observing the outcome of the inner action
+    -> (a -> m b)
+    -- ^ inner action to perform with the resource
     -> m (b, c)
 
 -- | A 'MonadMask' computation may either succeed with a value, abort with an
@@ -320,7 +320,7 @@ instance MonadCatch IO where
 instance MonadMask IO where
   mask = ControlException.mask
   uninterruptibleMask = ControlException.uninterruptibleMask
-  generalBracket acquire use release = mask $ \unmasked -> do
+  generalBracket acquire release use = mask $ \unmasked -> do
     resource <- acquire
     b <- unmasked (use resource) `catch` \e -> do
       _ <- release resource (ExitCaseException e)
@@ -347,7 +347,7 @@ instance e ~ SomeException => MonadMask (Either e) where
   mask f = f id
   uninterruptibleMask f = f id
 
-  generalBracket acquire use release =
+  generalBracket acquire release use =
     case acquire of
       Left e -> Left e
       Right resource ->
@@ -370,11 +370,11 @@ instance MonadMask m => MonadMask (IdentityT m) where
       where q :: (m a -> m a) -> IdentityT m a -> IdentityT m a
             q u = IdentityT . u . runIdentityT
 
-  generalBracket acquire use release = IdentityT $
+  generalBracket acquire release use = IdentityT $
     generalBracket
       (runIdentityT acquire)
-      (\resource -> runIdentityT (use resource))
       (\resource exitCase -> runIdentityT (release resource exitCase))
+      (\resource -> runIdentityT (use resource))
 
 instance MonadThrow m => MonadThrow (LazyS.StateT s m) where
   throwM e = lift $ throwM e
@@ -389,16 +389,16 @@ instance MonadMask m => MonadMask (LazyS.StateT s m) where
       where q :: (m (a, s) -> m (a, s)) -> LazyS.StateT s m a -> LazyS.StateT s m a
             q u (LazyS.StateT b) = LazyS.StateT (u . b)
 
-  generalBracket acquire use release = LazyS.StateT $ \s0 -> do
+  generalBracket acquire release use = LazyS.StateT $ \s0 -> do
     ((b, _s2), (c, s3)) <- generalBracket
       (LazyS.runStateT acquire s0)
-      (\(resource, s1) -> LazyS.runStateT (use resource) s1)
       (\(resource, s1) exitCase -> case exitCase of
         ExitCaseSuccess (b, s2) -> LazyS.runStateT (release resource (ExitCaseSuccess b)) s2
         -- In the two other cases, the base monad overrides @use@'s state
         -- changes and the state reverts to @s1@.
         ExitCaseException e     -> LazyS.runStateT (release resource (ExitCaseException e)) s1
         ExitCaseAbort           -> LazyS.runStateT (release resource ExitCaseAbort) s1)
+      (\(resource, s1) -> LazyS.runStateT (use resource) s1)
     return ((b, c), s3)
 
 instance MonadThrow m => MonadThrow (StrictS.StateT s m) where
@@ -414,16 +414,16 @@ instance MonadMask m => MonadMask (StrictS.StateT s m) where
       where q :: (m (a, s) -> m (a, s)) -> StrictS.StateT s m a -> StrictS.StateT s m a
             q u (StrictS.StateT b) = StrictS.StateT (u . b)
 
-  generalBracket acquire use release = StrictS.StateT $ \s0 -> do
+  generalBracket acquire release use = StrictS.StateT $ \s0 -> do
     ((b, _s2), (c, s3)) <- generalBracket
       (StrictS.runStateT acquire s0)
-      (\(resource, s1) -> StrictS.runStateT (use resource) s1)
       (\(resource, s1) exitCase -> case exitCase of
         ExitCaseSuccess (b, s2) -> StrictS.runStateT (release resource (ExitCaseSuccess b)) s2
         -- In the two other cases, the base monad overrides @use@'s state
         -- changes and the state reverts to @s1@.
         ExitCaseException e     -> StrictS.runStateT (release resource (ExitCaseException e)) s1
         ExitCaseAbort           -> StrictS.runStateT (release resource ExitCaseAbort) s1)
+      (\(resource, s1) -> StrictS.runStateT (use resource) s1)
     return ((b, c), s3)
 
 instance MonadThrow m => MonadThrow (ReaderT r m) where
@@ -439,11 +439,11 @@ instance MonadMask m => MonadMask (ReaderT r m) where
       where q :: (m a -> m a) -> ReaderT e m a -> ReaderT e m a
             q u (ReaderT b) = ReaderT (u . b)
 
-  generalBracket acquire use release = ReaderT $ \r ->
+  generalBracket acquire release use = ReaderT $ \r ->
     generalBracket
       (runReaderT acquire r)
-      (\resource -> runReaderT (use resource) r)
       (\resource exitCase -> runReaderT (release resource exitCase) r)
+      (\resource -> runReaderT (use resource) r)
 
 instance (MonadThrow m, Monoid w) => MonadThrow (StrictW.WriterT w m) where
   throwM e = lift $ throwM e
@@ -458,12 +458,9 @@ instance (MonadMask m, Monoid w) => MonadMask (StrictW.WriterT w m) where
       where q :: (m (a, w) -> m (a, w)) -> StrictW.WriterT w m a -> StrictW.WriterT w m a
             q u b = StrictW.WriterT $ u (StrictW.runWriterT b)
 
-  generalBracket acquire use release = StrictW.WriterT $ do
+  generalBracket acquire release use = StrictW.WriterT $ do
     ((b, _w12), (c, w123)) <- generalBracket
       (StrictW.runWriterT acquire)
-      (\(resource, w1) -> do
-        (a, w2) <- StrictW.runWriterT (use resource)
-        return (a, mappend w1 w2))
       (\(resource, w1) exitCase -> case exitCase of
         ExitCaseSuccess (b, w12) -> do
           (c, w3) <- StrictW.runWriterT (release resource (ExitCaseSuccess b))
@@ -476,6 +473,9 @@ instance (MonadMask m, Monoid w) => MonadMask (StrictW.WriterT w m) where
         ExitCaseAbort -> do
           (c, w3) <- StrictW.runWriterT (release resource ExitCaseAbort)
           return (c, mappend w1 w3))
+      (\(resource, w1) -> do
+        (a, w2) <- StrictW.runWriterT (use resource)
+        return (a, mappend w1 w2))
     return ((b, c), w123)
 
 instance (MonadThrow m, Monoid w) => MonadThrow (LazyW.WriterT w m) where
@@ -491,12 +491,9 @@ instance (MonadMask m, Monoid w) => MonadMask (LazyW.WriterT w m) where
       where q :: (m (a, w) -> m (a, w)) -> LazyW.WriterT w m a -> LazyW.WriterT w m a
             q u b = LazyW.WriterT $ u (LazyW.runWriterT b)
 
-  generalBracket acquire use release = LazyW.WriterT $ do
+  generalBracket acquire release use = LazyW.WriterT $ do
     ((b, _w12), (c, w123)) <- generalBracket
       (LazyW.runWriterT acquire)
-      (\(resource, w1) -> do
-        (a, w2) <- LazyW.runWriterT (use resource)
-        return (a, mappend w1 w2))
       (\(resource, w1) exitCase -> case exitCase of
         ExitCaseSuccess (b, w12) -> do
           (c, w3) <- LazyW.runWriterT (release resource (ExitCaseSuccess b))
@@ -509,6 +506,9 @@ instance (MonadMask m, Monoid w) => MonadMask (LazyW.WriterT w m) where
         ExitCaseAbort -> do
           (c, w3) <- LazyW.runWriterT (release resource ExitCaseAbort)
           return (c, mappend w1 w3))
+      (\(resource, w1) -> do
+        (a, w2) <- LazyW.runWriterT (use resource)
+        return (a, mappend w1 w2))
     return ((b, c), w123)
 
 instance (MonadThrow m, Monoid w) => MonadThrow (LazyRWS.RWST r w s m) where
@@ -524,12 +524,9 @@ instance (MonadMask m, Monoid w) => MonadMask (LazyRWS.RWST r w s m) where
       where q :: (m (a, s, w) -> m (a, s, w)) -> LazyRWS.RWST r w s m a -> LazyRWS.RWST r w s m a
             q u (LazyRWS.RWST b) = LazyRWS.RWST $ \ r s -> u (b r s)
 
-  generalBracket acquire use release = LazyRWS.RWST $ \r s0 -> do
+  generalBracket acquire release use = LazyRWS.RWST $ \r s0 -> do
     ((b, _s2, _w12), (c, s3, w123)) <- generalBracket
       (LazyRWS.runRWST acquire r s0)
-      (\(resource, s1, w1) -> do
-        (a, s2, w2) <- LazyRWS.runRWST (use resource) r s1
-        return (a, s2, mappend w1 w2))
       (\(resource, s1, w1) exitCase -> case exitCase of
         ExitCaseSuccess (b, s2, w12) -> do
           (c, s3, w3) <- LazyRWS.runRWST (release resource (ExitCaseSuccess b)) r s2
@@ -542,6 +539,9 @@ instance (MonadMask m, Monoid w) => MonadMask (LazyRWS.RWST r w s m) where
         ExitCaseAbort -> do
           (c, s3, w3) <- LazyRWS.runRWST (release resource ExitCaseAbort) r s1
           return (c, s3, mappend w1 w3))
+      (\(resource, s1, w1) -> do
+        (a, s2, w2) <- LazyRWS.runRWST (use resource) r s1
+        return (a, s2, mappend w1 w2))
     return ((b, c), s3, w123)
 
 instance (MonadThrow m, Monoid w) => MonadThrow (StrictRWS.RWST r w s m) where
@@ -557,12 +557,9 @@ instance (MonadMask m, Monoid w) => MonadMask (StrictRWS.RWST r w s m) where
       where q :: (m (a, s, w) -> m (a, s, w)) -> StrictRWS.RWST r w s m a -> StrictRWS.RWST r w s m a
             q u (StrictRWS.RWST b) = StrictRWS.RWST $ \ r s -> u (b r s)
 
-  generalBracket acquire use release = StrictRWS.RWST $ \r s0 -> do
+  generalBracket acquire release use = StrictRWS.RWST $ \r s0 -> do
     ((b, _s2, _w12), (c, s3, w123)) <- generalBracket
       (StrictRWS.runRWST acquire r s0)
-      (\(resource, s1, w1) -> do
-        (a, s2, w2) <- StrictRWS.runRWST (use resource) r s1
-        return (a, s2, mappend w1 w2))
       (\(resource, s1, w1) exitCase -> case exitCase of
         ExitCaseSuccess (b, s2, w12) -> do
           (c, s3, w3) <- StrictRWS.runRWST (release resource (ExitCaseSuccess b)) r s2
@@ -575,6 +572,9 @@ instance (MonadMask m, Monoid w) => MonadMask (StrictRWS.RWST r w s m) where
         ExitCaseAbort -> do
           (c, s3, w3) <- StrictRWS.runRWST (release resource ExitCaseAbort) r s1
           return (c, s3, mappend w1 w3))
+      (\(resource, s1, w1) -> do
+        (a, s2, w2) <- StrictRWS.runRWST (use resource) r s1
+        return (a, s2, mappend w1 w2))
     return ((b, c), s3, w123)
 
 -- Transformers which are only instances of MonadThrow and MonadCatch, not MonadMask
@@ -601,18 +601,18 @@ instance MonadMask m => MonadMask (MaybeT m) where
         -> MaybeT m a -> MaybeT m a
       q u (MaybeT b) = MaybeT (u b)
 
-  generalBracket acquire use release = MaybeT $ do
+  generalBracket acquire release use = MaybeT $ do
     (eb, ec) <- generalBracket
       (runMaybeT acquire)
-      (\resourceMay -> case resourceMay of
-        Nothing -> return Nothing
-        Just resource -> runMaybeT (use resource))
       (\resourceMay exitCase -> case resourceMay of
         Nothing -> return Nothing -- nothing to release, acquire didn't succeed
         Just resource -> case exitCase of
           ExitCaseSuccess (Just b) -> runMaybeT (release resource (ExitCaseSuccess b))
           ExitCaseException e      -> runMaybeT (release resource (ExitCaseException e))
           _                        -> runMaybeT (release resource ExitCaseAbort))
+      (\resourceMay -> case resourceMay of
+        Nothing -> return Nothing
+        Just resource -> runMaybeT (use resource))
     -- The order in which we perform those two 'Maybe' effects doesn't matter,
     -- since the error message is the same regardless.
     return ((,) <$> eb <*> ec)
@@ -635,16 +635,16 @@ instance (Error e, MonadMask m) => MonadMask (ErrorT e m) where
         -> ErrorT e m a -> ErrorT e m a
       q u (ErrorT b) = ErrorT (u b)
 
-  generalBracket acquire use release = ErrorT $ do
+  generalBracket acquire release use = ErrorT $ do
     (eb, ec) <- generalBracket
       (runErrorT acquire)
-      (either (return . Left) (runErrorT . use))
       (\eresource exitCase -> case eresource of
         Left e -> return (Left e) -- nothing to release, acquire didn't succeed
         Right resource -> case exitCase of
           ExitCaseSuccess (Right b) -> runErrorT (release resource (ExitCaseSuccess b))
           ExitCaseException e       -> runErrorT (release resource (ExitCaseException e))
           _                         -> runErrorT (release resource ExitCaseAbort))
+      (either (return . Left) (runErrorT . use))
     return $ do
       -- The order in which we perform those two 'Either' effects determines
       -- which error will win if they are both 'Left's. We want the error from
@@ -671,16 +671,16 @@ instance MonadMask m => MonadMask (ExceptT e m) where
         -> ExceptT e m a -> ExceptT e m a
       q u (ExceptT b) = ExceptT (u b)
 
-  generalBracket acquire use release = ExceptT $ do
+  generalBracket acquire release use = ExceptT $ do
     (eb, ec) <- generalBracket
       (runExceptT acquire)
-      (either (return . Left) (runExceptT . use))
       (\eresource exitCase -> case eresource of
         Left e -> return (Left e) -- nothing to release, acquire didn't succeed
         Right resource -> case exitCase of
           ExitCaseSuccess (Right b) -> runExceptT (release resource (ExitCaseSuccess b))
           ExitCaseException e       -> runExceptT (release resource (ExitCaseException e))
           _                         -> runExceptT (release resource ExitCaseAbort))
+      (either (return . Left) (runExceptT . use))
     return $ do
       -- The order in which we perform those two 'Either' effects determines
       -- which error will win if they are both 'Left's. We want the error from
@@ -819,9 +819,8 @@ onError action handler = bracketOnError (return ()) (const handler) (const actio
 -- contrast, 'generalBracket' is more expressive, allowing us to implement
 -- other functions like 'bracketOnError'.
 bracket :: MonadMask m => m a -> (a -> m b) -> (a -> m c) -> m c
-bracket acquire release use = fst <$> generalBracket
+bracket acquire release = fmap fst . generalBracket
   acquire
-  use
   (\a _exitCase -> release a)
 
 -- | Version of 'bracket' without any value being passed to the second and
@@ -837,9 +836,8 @@ finally action finalizer = bracket_ (return ()) finalizer action
 -- | Like 'bracket', but only performs the final action if an error is
 -- thrown by the in-between computation.
 bracketOnError :: MonadMask m => m a -> (a -> m b) -> (a -> m c) -> m c
-bracketOnError acquire release use = fst <$> generalBracket
+bracketOnError acquire release = fmap fst . generalBracket
   acquire
-  use
   (\a exitCase -> case exitCase of
     ExitCaseSuccess _ -> return ()
     _ -> do

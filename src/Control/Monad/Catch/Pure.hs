@@ -162,7 +162,7 @@ instance Monad m => MonadCatch (CatchT m) where
 instance Monad m => MonadMask (CatchT m) where
   mask a = a id
   uninterruptibleMask a = a id
-  generalBracket acquire use release = CatchT $ do
+  generalBracket acquire release use = CatchT $ do
     eresource <- runCatchT acquire
     case eresource of
       Left e -> return $ Left e
