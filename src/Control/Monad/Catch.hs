@@ -793,8 +793,13 @@ onException :: MonadCatch m => m a -> m b -> m a
 onException action handler = action `catchAll` \e -> handler >> throwM e
 
 -- | Run an action only if an error is thrown in the main action. Unlike
--- 'onException', this works with every kind of error, not just exceptions, but
--- it requires a 'MonadMask' instance, not just 'MonadCatch'.
+-- 'onException', this works with every kind of error, not just exceptions. For
+-- example, if @f@ is an 'ExceptT' computation which aborts with a 'Left', the
+-- computation @onError f g@ will execute @g@, while @onException f g@ will not.
+--
+-- For monads which, unlike 'ExceptT' and 'MaybeT', only have a single exit
+-- point, there is no difference between 'onException' and 'onError', except
+-- that 'onError' has a more constraining type.
 --
 -- @since 0.10.0
 onError :: MonadMask m => m a -> m b -> m a
