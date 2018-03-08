@@ -1,5 +1,5 @@
-?????
------
+0.10.0
+------
 * Fix a regression in 0.9.0 whereby the non-IO effects in `bracket`'s `use`
   action were not visible to the `release` action, and the non-IO effects in the
   `release` action were not visible after the `bracket` call.
