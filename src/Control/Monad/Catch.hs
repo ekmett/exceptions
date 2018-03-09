@@ -103,6 +103,7 @@ import Data.Foldable
 import Data.Monoid
 #elif __GLASGOW_HASKELL__ < 710
 import Prelude hiding (foldr)
+import Control.Applicative
 import Data.Foldable
 import Data.Monoid
 #endif
