@@ -156,22 +156,25 @@ instance Monad m => MonadCatch (CatchT m) where
     Right a -> return (Right a)
 -- | Note: This instance is only valid if the underlying monad has a single
 -- exit point!
+--
+-- For example, @IO@ or @Either@ would be invalid base monads, but
+-- @Reader@ or @State@ would be acceptable.
 instance Monad m => MonadMask (CatchT m) where
   mask a = a id
   uninterruptibleMask a = a id
-  generalBracket acquire release cleanup use = CatchT $ do
+  generalBracket acquire release use = CatchT $ do
     eresource <- runCatchT acquire
     case eresource of
       Left e -> return $ Left e
       Right resource -> do
-        eresult <- runCatchT (use resource)
-        case eresult of
-          Left e -> do
-            _ <- runCatchT (cleanup resource e)
-            return $ Left e
-          Right result -> do
-            _ <- runCatchT (release resource)
-            return $ Right result
+        eb <- runCatchT (use resource)
+        case eb of
+          Left e -> runCatchT $ do
+            _ <- release resource (ExitCaseException e)
+            throwM e
+          Right b -> runCatchT $ do
+            c <- release resource (ExitCaseSuccess b)
+            return (b, c)
 
 instance MonadState s m => MonadState s (CatchT m) where
   get = lift get

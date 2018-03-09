@@ -1,3 +1,15 @@
+0.10.0
+------
+* Fix a regression in 0.9.0 whereby the non-IO effects in `bracket`'s `use`
+  action were not visible to the `release` action, and the non-IO effects in the
+  `release` action were not visible after the `bracket` call.
+* The type of `generalBracket` was changed in order to restore those non-IO
+  effects, so if you are a library author that provides a `MonadMask` instance,
+  you will need to update your implementation of this method.
+* Add `MonadMask` instance for `MaybeT`
+* Add `onError` function whose action also runs on errors which are not
+  exceptions, such as a `Nothing` or a `Left`.
+
 0.9.0
 -----
 * Add `generalBracket` to the `MonadMask` typeclass, allowing more
