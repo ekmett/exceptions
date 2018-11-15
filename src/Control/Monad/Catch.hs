@@ -72,6 +72,8 @@ module Control.Monad.Catch (
   , bracket_
   , finally
   , bracketOnError
+  , eitherToThrowAs
+  , eitherToThrow
     -- * Re-exports from Control.Exception
   , Exception(..)
   , SomeException(..)
@@ -859,3 +861,12 @@ bracketOnError acquire release = liftM fst . generalBracket
     _ -> do
       _ <- release a
       return ())
+
+-- @since 0.11.0
+eitherToThrow :: (Exception exc, MonadThrow m, Applicative m) => Either exc a -> m a
+eitherToThrow = eitherToThrowAs id
+
+
+-- @since 0.11.0
+eitherToThrowAs :: (Exception exc, MonadThrow m, Applicative m) => (l -> exc) -> Either l a -> m a
+eitherToThrowAs f = either (throwM . f) pure
