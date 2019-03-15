@@ -1,3 +1,7 @@
+next [????.??.??]
+-----------------
+* Define a `MonadFail` instance for `CatchT`.
+
 0.10.0
 ------
 * Fix a regression in 0.9.0 whereby the non-IO effects in `bracket`'s `use`

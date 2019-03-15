@@ -54,6 +54,7 @@ import Prelude hiding (catch, foldr)
 
 import Control.Applicative
 import Control.Monad.Catch
+import qualified Control.Monad.Fail as Fail
 import Control.Monad.Reader as Reader
 import Control.Monad.RWS
 #if __GLASGOW_HASKELL__ < 710
@@ -109,6 +110,9 @@ instance Monad m => Monad (CatchT m) where
   CatchT m >>= k = CatchT $ m >>= \ea -> case ea of
     Left e -> return (Left e)
     Right a -> runCatchT (k a)
+  fail = Fail.fail
+
+instance Monad m => Fail.MonadFail (CatchT m) where
   fail = CatchT . return . Left . toException . userError
 
 instance MonadFix m => MonadFix (CatchT m) where
