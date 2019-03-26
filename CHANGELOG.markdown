@@ -1,6 +1,7 @@
 next [????.??.??]
 -----------------
 * Define a `MonadFail` instance for `CatchT`.
+* Allow `QuickCheck-2.13` in the test suite.
 
 0.10.0
 ------
