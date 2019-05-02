@@ -110,7 +110,7 @@ instance Monad m => Monad (CatchT m) where
   CatchT m >>= k = CatchT $ m >>= \ea -> case ea of
     Left e -> return (Left e)
     Right a -> runCatchT (k a)
-#if !MIN_VERSION_base(4,13,0)
+#if !(MIN_VERSION_base(4,13,0))
   fail = Fail.fail
 #endif
 

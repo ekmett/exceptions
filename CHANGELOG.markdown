@@ -1,3 +1,7 @@
+next [????.??.??]
+-----------------
+* Allow building with `base-4.13`/`template-haskell-2.15`.
+
 0.10.1 [2019.03.26]
 -------------------
 * Define a `MonadFail` instance for `CatchT`.
