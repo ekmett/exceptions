@@ -86,6 +86,8 @@ import qualified Control.Monad.Trans.State.Lazy as LazyS
 import qualified Control.Monad.Trans.State.Strict as StrictS
 import qualified Control.Monad.Trans.Writer.Lazy as LazyW
 import qualified Control.Monad.Trans.Writer.Strict as StrictW
+import Control.Monad.ST (ST)
+import Control.Monad.ST.Unsafe (unsafeIOToST)
 import Control.Monad.STM (STM)
 import Control.Monad.Trans.List (ListT(..), runListT)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
@@ -334,6 +336,9 @@ instance MonadMask IO where
       throwM e
     c <- release resource (ExitCaseSuccess b)
     return (b, c)
+
+instance MonadThrow (ST s) where
+  throwM = unsafeIOToST . ControlException.throwIO
 
 instance MonadThrow STM where
   throwM = STM.throwSTM

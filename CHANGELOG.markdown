@@ -1,3 +1,7 @@
+0.10.3 [2019.06.x]
+-------------------
+* `MonadThrow` instance for the strict `ST` monad.
+
 0.10.2 [2019.05.02]
 -------------------
 * Allow building with `base-4.13`/`template-haskell-2.15`.
