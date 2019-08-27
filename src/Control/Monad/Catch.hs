@@ -87,7 +87,6 @@ import qualified Control.Monad.Trans.State.Strict as StrictS
 import qualified Control.Monad.Trans.Writer.Lazy as LazyW
 import qualified Control.Monad.Trans.Writer.Strict as StrictW
 import Control.Monad.ST (ST)
-import Control.Monad.ST.Unsafe (unsafeIOToST)
 import Control.Monad.STM (STM)
 import Control.Monad.Trans.List (ListT(..), runListT)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
@@ -98,6 +97,12 @@ import Control.Monad.Trans.Identity
 import Control.Monad.Reader as Reader
 
 import Language.Haskell.TH.Syntax (Q)
+
+#if MIN_VERSION_base(4,4,0)
+import Control.Monad.ST.Unsafe (unsafeIOToST)
+#else
+import Control.Monad.ST (unsafeIOToST)
+#endif
 
 #if __GLASGOW_HASKELL__ < 706
 import Prelude hiding (catch, foldr)
