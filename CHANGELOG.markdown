@@ -1,4 +1,4 @@
-0.10.3 [2019.06.x]
+0.10.3 [2019.08.27]
 -------------------
 * `MonadThrow` instance for the strict `ST` monad.
 
