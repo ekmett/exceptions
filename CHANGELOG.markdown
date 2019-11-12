@@ -1,3 +1,7 @@
+next [????.??.??]
+-----------------
+* Only depend on `transformers-compat` on old versions of GHC.
+
 0.10.3 [2019.08.27]
 -------------------
 * `MonadThrow` instance for the strict `ST` monad.

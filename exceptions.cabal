@@ -41,17 +41,27 @@ source-repository head
   type: git
   location: git://github.com/ekmett/exceptions.git
 
+flag transformers-0-4
+  description: Use @transformers-0.4@ or later.
+  default:     True
+
 library
   build-depends:
     base                       >= 4.3      && < 5,
     stm                        >= 2.2      && < 3,
     template-haskell           >= 2.2      && < 2.16,
-    transformers               >= 0.2      && < 0.6,
-    transformers-compat        >= 0.3      && < 0.7,
     mtl                        >= 2.0      && < 2.3
 
   if !impl(ghc >= 8.0)
     build-depends: fail        == 4.9.*
+
+  if flag(transformers-0-4)
+    build-depends:
+      transformers             >= 0.4      && < 0.6
+  else
+    build-depends:
+      transformers             >= 0.2      && < 0.4,
+      transformers-compat      >= 0.3      && < 0.7
 
   exposed-modules:
     Control.Monad.Catch
@@ -71,10 +81,16 @@ test-suite exceptions-tests
     exceptions,
     stm,
     template-haskell,
-    transformers,
-    transformers-compat,
     mtl                        >= 2.0,
     test-framework             >= 0.8      && < 0.9,
     test-framework-hunit       >= 0.3      && < 0.4,
     test-framework-quickcheck2 >= 0.3      && < 0.4,
     QuickCheck                 >= 2.5      && < 2.14
+
+  if flag(transformers-0-4)
+    build-depends:
+      transformers             >= 0.4      && < 0.6
+  else
+    build-depends:
+      transformers             >= 0.2      && < 0.4,
+      transformers-compat      >= 0.3      && < 0.7
