@@ -30,3 +30,8 @@ cabal.project.local
 cabal.project.local~
 .HTF/
 .ghc.environment.*
+
+# GHC
+dist-install
+GNUmakefile
+ghc.mk
