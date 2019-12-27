@@ -1,5 +1,6 @@
-next [????.??.??]
------------------
+0.10.4 [2019.12.26]
+-------------------
+* Allow building with `template-haskell-2.16.*`.
 * Only depend on `transformers-compat` on old versions of GHC.
 
 0.10.3 [2019.08.27]
