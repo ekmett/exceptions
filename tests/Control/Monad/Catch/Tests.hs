@@ -149,7 +149,7 @@ tests = testGroup "Control.Monad.Catch.Tests" $
     mspecStrictRWSTIO = MSpec "StrictRWS.RWST IO" $ \m -> io $ fmap tfst $ StrictRWS.evalRWST m () False
 
     mspecListTIO :: MSpec (ListT IO)
-    mspecListTIO = MSpec "ListT IO" $ \m -> io $ fmap (\[x] -> x) (runListT m)
+    mspecListTIO = MSpec "ListT IO" $ \m -> io $ fmap (foldr const undefined) (runListT m)
 
     mspecMaybeTIO :: MSpec (MaybeT IO)
     mspecMaybeTIO = MSpec "MaybeT IO" $ \m -> io $ fmap (maybe undefined id) (runMaybeT m)
