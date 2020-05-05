@@ -32,6 +32,7 @@ cabal.project.local~
 .ghc.environment.*
 
 # GHC
+dist-boot
 dist-install
 GNUmakefile
 ghc.mk
