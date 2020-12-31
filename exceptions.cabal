@@ -28,12 +28,9 @@ synopsis:      Extensible optionally-pure exceptions
 description:   Extensible optionally-pure exceptions.
 
 extra-source-files:
-  .travis.yml
   .ghci
   .gitignore
   .vim.custom
-  travis/cabal-apt-install
-  travis/config
   AUTHORS.markdown
   README.markdown
   CHANGELOG.markdown
