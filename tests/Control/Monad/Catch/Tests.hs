@@ -3,7 +3,10 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE CPP #-}
+
+#if !(MIN_VERSION_transformers(0,6,0))
 {-# OPTIONS_GHC -fno-warn-deprecations #-}
+#endif
 
 module Control.Monad.Catch.Tests (tests) where
 
@@ -21,9 +24,7 @@ import Data.IORef (newIORef, writeIORef, readIORef)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Identity (IdentityT(..))
 import Control.Monad.Reader (ReaderT(..))
-import Control.Monad.List (ListT(..))
 import Control.Monad.Trans.Maybe (MaybeT(..))
-import Control.Monad.Error (ErrorT(..))
 import Control.Monad.Trans.Except (ExceptT(..), runExceptT)
 import Control.Monad.STM (STM, atomically)
 --import Control.Monad.Cont (ContT(..))
@@ -38,6 +39,10 @@ import qualified Control.Monad.Writer.Lazy as LazyWriter
 import qualified Control.Monad.Writer.Strict as StrictWriter
 import qualified Control.Monad.RWS.Lazy as LazyRWS
 import qualified Control.Monad.RWS.Strict as StrictRWS
+#if !(MIN_VERSION_transformers(0,6,0))
+import Control.Monad.Error (ErrorT(..))
+import Control.Monad.List (ListT(..))
+#endif
 
 import Control.Monad.Catch
 import Control.Monad.Catch.Pure
@@ -113,9 +118,11 @@ tests = testGroup "Control.Monad.Catch.Tests" $
         , SomeMSpec mspecLazyRWSTIO
         , SomeMSpec mspecStrictRWSTIO
 
-        , SomeMSpec mspecListTIO
         , SomeMSpec mspecMaybeTIO
+#if !(MIN_VERSION_transformers(0,6,0))
         , SomeMSpec mspecErrorTIO
+        , SomeMSpec mspecListTIO
+#endif
         , SomeMSpec mspecSTM
         --, SomeMSpec mspecContTIO
 
@@ -150,14 +157,16 @@ tests = testGroup "Control.Monad.Catch.Tests" $
     mspecStrictRWSTIO :: MSpec (StrictRWS.RWST () () Bool IO)
     mspecStrictRWSTIO = MSpec "StrictRWS.RWST IO" $ \m -> io $ fmap tfst $ StrictRWS.evalRWST m () False
 
-    mspecListTIO :: MSpec (ListT IO)
-    mspecListTIO = MSpec "ListT IO" $ \m -> io $ fmap (foldr const undefined) (runListT m)
-
     mspecMaybeTIO :: MSpec (MaybeT IO)
     mspecMaybeTIO = MSpec "MaybeT IO" $ \m -> io $ fmap (maybe undefined id) (runMaybeT m)
 
+#if !(MIN_VERSION_transformers(0,6,0))
     mspecErrorTIO :: MSpec (ErrorT String IO)
     mspecErrorTIO = MSpec "ErrorT IO" $ \m -> io $ fmap (either error id) (runErrorT m)
+
+    mspecListTIO :: MSpec (ListT IO)
+    mspecListTIO = MSpec "ListT IO" $ \m -> io $ fmap (foldr const undefined) (runListT m)
+#endif
 
     mspecSTM :: MSpec STM
     mspecSTM = MSpec "STM" $ io . atomically

@@ -16,11 +16,9 @@
 #define MIN_VERSION_transformers(x,y,z) 1
 #endif
 
-#ifndef MIN_VERSION_mtl
-#define MIN_VERSION_mtl(x,y,z) 1
-#endif
-
+#if !(MIN_VERSION_transformers(0,6,0))
 {-# OPTIONS_GHC -fno-warn-deprecations #-}
+#endif
 --------------------------------------------------------------------
 -- |
 -- Copyright   :  (C) Edward Kmett 2013-2015, (c) Google Inc. 2012
@@ -80,6 +78,7 @@ module Control.Monad.Catch (
 
 import Control.Exception (Exception(..), SomeException(..))
 import qualified Control.Exception as ControlException
+import Control.Monad (liftM)
 import qualified Control.Monad.STM as STM
 import qualified Control.Monad.Trans.RWS.Lazy as LazyRWS
 import qualified Control.Monad.Trans.RWS.Strict as StrictRWS
@@ -89,13 +88,12 @@ import qualified Control.Monad.Trans.Writer.Lazy as LazyW
 import qualified Control.Monad.Trans.Writer.Strict as StrictW
 import Control.Monad.ST (ST)
 import Control.Monad.STM (STM)
-import Control.Monad.Trans.List (ListT(..), runListT)
+import Control.Monad.Trans.Class (MonadTrans(..))
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
-import Control.Monad.Trans.Error (ErrorT(..), Error, runErrorT)
 import Control.Monad.Trans.Except (ExceptT(..), runExceptT)
 import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Identity
-import Control.Monad.Reader as Reader
+import Control.Monad.Trans.Reader (ReaderT(..), runReaderT)
 
 import Language.Haskell.TH.Syntax (Q)
 
@@ -117,6 +115,11 @@ import Data.Monoid
 
 #if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
+#endif
+
+#if !(MIN_VERSION_transformers(0,6,0))
+import Control.Monad.Trans.Error (ErrorT(..), Error, runErrorT)
+import Control.Monad.Trans.List (ListT(..), runListT)
 #endif
 
 ------------------------------------------------------------------------------
@@ -598,12 +601,6 @@ instance (MonadMask m, Monoid w) => MonadMask (StrictRWS.RWST r w s m) where
         return (a, s2, mappend w1 w2))
     return ((b, c), s3, w123)
 
--- Transformers which are only instances of MonadThrow and MonadCatch, not MonadMask
-instance MonadThrow m => MonadThrow (ListT m) where
-  throwM = lift . throwM
-instance MonadCatch m => MonadCatch (ListT m) where
-  catch (ListT m) f = ListT $ catch m (runListT . f)
-
 -- | Throws exceptions into the base monad.
 instance MonadThrow m => MonadThrow (MaybeT m) where
   throwM = lift . throwM
@@ -638,42 +635,6 @@ instance MonadMask m => MonadMask (MaybeT m) where
     -- The order in which we perform those two 'Maybe' effects doesn't matter,
     -- since the error message is the same regardless.
     return ((,) <$> eb <*> ec)
-
--- | Throws exceptions into the base monad.
-instance (Error e, MonadThrow m) => MonadThrow (ErrorT e m) where
-  throwM = lift . throwM
--- | Catches exceptions from the base monad.
-instance (Error e, MonadCatch m) => MonadCatch (ErrorT e m) where
-  catch (ErrorT m) f = ErrorT $ catch m (runErrorT . f)
-instance (Error e, MonadMask m) => MonadMask (ErrorT e m) where
-  mask f = ErrorT $ mask $ \u -> runErrorT $ f (q u)
-    where
-      q :: (m (Either e a) -> m (Either e a))
-        -> ErrorT e m a -> ErrorT e m a
-      q u (ErrorT b) = ErrorT (u b)
-  uninterruptibleMask f = ErrorT $ uninterruptibleMask $ \u -> runErrorT $ f (q u)
-    where
-      q :: (m (Either e a) -> m (Either e a))
-        -> ErrorT e m a -> ErrorT e m a
-      q u (ErrorT b) = ErrorT (u b)
-
-  generalBracket acquire release use = ErrorT $ do
-    (eb, ec) <- generalBracket
-      (runErrorT acquire)
-      (\eresource exitCase -> case eresource of
-        Left e -> return (Left e) -- nothing to release, acquire didn't succeed
-        Right resource -> case exitCase of
-          ExitCaseSuccess (Right b) -> runErrorT (release resource (ExitCaseSuccess b))
-          ExitCaseException e       -> runErrorT (release resource (ExitCaseException e))
-          _                         -> runErrorT (release resource ExitCaseAbort))
-      (either (return . Left) (runErrorT . use))
-    return $ do
-      -- The order in which we perform those two 'Either' effects determines
-      -- which error will win if they are both 'Left's. We want the error from
-      -- 'release' to win.
-      c <- ec
-      b <- eb
-      return (b, c)
 
 -- | Throws exceptions into the base monad.
 instance MonadThrow m => MonadThrow (ExceptT e m) where
@@ -719,6 +680,50 @@ instance MonadThrow m => MonadThrow (ContT r m) where
   throwM = lift . throwM
 -- I don't believe any valid of MonadCatch exists for ContT.
 -- instance MonadCatch m => MonadCatch (ContT r m) where
+
+#if !(MIN_VERSION_transformers(0,6,0))
+-- | Throws exceptions into the base monad.
+instance (Error e, MonadThrow m) => MonadThrow (ErrorT e m) where
+  throwM = lift . throwM
+-- | Catches exceptions from the base monad.
+instance (Error e, MonadCatch m) => MonadCatch (ErrorT e m) where
+  catch (ErrorT m) f = ErrorT $ catch m (runErrorT . f)
+instance (Error e, MonadMask m) => MonadMask (ErrorT e m) where
+  mask f = ErrorT $ mask $ \u -> runErrorT $ f (q u)
+    where
+      q :: (m (Either e a) -> m (Either e a))
+        -> ErrorT e m a -> ErrorT e m a
+      q u (ErrorT b) = ErrorT (u b)
+  uninterruptibleMask f = ErrorT $ uninterruptibleMask $ \u -> runErrorT $ f (q u)
+    where
+      q :: (m (Either e a) -> m (Either e a))
+        -> ErrorT e m a -> ErrorT e m a
+      q u (ErrorT b) = ErrorT (u b)
+
+  generalBracket acquire release use = ErrorT $ do
+    (eb, ec) <- generalBracket
+      (runErrorT acquire)
+      (\eresource exitCase -> case eresource of
+        Left e -> return (Left e) -- nothing to release, acquire didn't succeed
+        Right resource -> case exitCase of
+          ExitCaseSuccess (Right b) -> runErrorT (release resource (ExitCaseSuccess b))
+          ExitCaseException e       -> runErrorT (release resource (ExitCaseException e))
+          _                         -> runErrorT (release resource ExitCaseAbort))
+      (either (return . Left) (runErrorT . use))
+    return $ do
+      -- The order in which we perform those two 'Either' effects determines
+      -- which error will win if they are both 'Left's. We want the error from
+      -- 'release' to win.
+      c <- ec
+      b <- eb
+      return (b, c)
+
+-- Transformers which are only instances of MonadThrow and MonadCatch, not MonadMask
+instance MonadThrow m => MonadThrow (ListT m) where
+  throwM = lift . throwM
+instance MonadCatch m => MonadCatch (ListT m) where
+  catch (ListT m) f = ListT $ catch m (runListT . f)
+#endif
 
 ------------------------------------------------------------------------------
 -- $utilities

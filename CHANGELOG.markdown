@@ -1,3 +1,7 @@
+next [????.??.??]
+-----------------
+* Allow building with `transformers-0.6.*` and `mtl-2.3.*`.
+
 0.10.4 [2019.12.26]
 -------------------
 * Allow building with `template-haskell-2.16.*`.
