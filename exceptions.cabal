@@ -60,7 +60,7 @@ library
   else
     build-depends:
       transformers             >= 0.2      && < 0.4,
-      transformers-compat      >= 0.3      && < 0.7
+      transformers-compat      >= 0.3      && < 0.8
 
   exposed-modules:
     Control.Monad.Catch
@@ -94,4 +94,4 @@ test-suite exceptions-tests
   else
     build-depends:
       transformers             >= 0.2      && < 0.4,
-      transformers-compat      >= 0.3      && < 0.7
+      transformers-compat      >= 0.3      && < 0.8
