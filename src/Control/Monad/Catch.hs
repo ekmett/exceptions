@@ -184,7 +184,7 @@ class MonadThrow m => MonadCatch m where
 -- error from the same layer, instances should ensure that the error from @g@
 -- wins.
 --
--- Effects other than throwing an error are also overriden by the deeper layers.
+-- Effects other than throwing an error are also overridden by the deeper layers.
 -- For example, @StateT s Maybe a@ represents a value of type @s -> Maybe (a,
 -- s)@, so if an error thrown from @f@ causes this function to return @Nothing@,
 -- any changes to the state which @f@ also performed will be erased. As a
