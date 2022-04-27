@@ -160,6 +160,7 @@ instance Monad m => MonadCatch (CatchT m) where
       Just e' -> runCatchT (c e')
       Nothing -> return (Left e)
     Right a -> return (Right a)
+
 -- | Note: This instance is only valid if the underlying monad has a single
 -- exit point!
 --
@@ -168,6 +169,13 @@ instance Monad m => MonadCatch (CatchT m) where
 instance Monad m => MonadMask (CatchT m) where
   mask a = a id
   uninterruptibleMask a = a id
+
+-- | Note: This instance is only valid if the underlying monad has a single
+-- exit point!
+--
+-- For example, @IO@ or @Either@ would be invalid base monads, but
+-- @Reader@ or @State@ would be acceptable.
+instance Monad m => MonadBracket (CatchT m) where
   generalBracket acquire release use = CatchT $ do
     eresource <- runCatchT acquire
     case eresource of
