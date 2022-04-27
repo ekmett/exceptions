@@ -60,7 +60,7 @@ data DetectableEffect m = DetectableEffect
 
 data SomeMSpec = forall m. (MonadCatch m) => SomeMSpec (MSpec m)
 
-data SomeDetectableEffect = forall m. (MonadMask m) => SomeDetectableEffect (DetectableEffect m)
+data SomeDetectableEffect = forall m. (MonadBracket m) => SomeDetectableEffect (DetectableEffect m)
 
 testMonadCatch :: SomeMSpec -> Property
 testMonadCatch (SomeMSpec MSpec { mspecRunner }) = monadic mspecRunner $
