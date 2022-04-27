@@ -48,8 +48,9 @@ module Control.Monad.Catch (
     -- $mtl
     MonadThrow(..)
   , MonadCatch(..)
-  , MonadMask(..)
+  , MonadBracket(..)
   , ExitCase(..)
+  , MonadMask(..)
 
     -- * Utilities
     -- $utilities
@@ -154,7 +155,7 @@ class Monad m => MonadThrow m where
 -- continuation-based stacks, allow for more than just a success/failure
 -- strategy, and therefore @catch@ /cannot/ be used by those monads to properly
 -- implement a function such as @finally@. For more information, see
--- 'MonadMask'.
+-- 'MonadBracket'.
 class MonadThrow m => MonadCatch m where
   -- | Provide a handler for exceptions thrown during execution of the first
   -- action. Note that type of the type of the argument to the handler will
@@ -162,9 +163,23 @@ class MonadThrow m => MonadCatch m where
   -- 'ControlException.catch'.
   catch :: Exception e => m a -> (e -> m a) -> m a
 
+-- | A class for monads which allow masking of asynchronous exceptions.
+class MonadCatch m => MonadMask m where
+  -- | Runs an action with asynchronous exceptions disabled. The action is
+  -- provided a method for restoring the async. environment to what it was
+  -- at the 'mask' call. See "Control.Exception"'s 'ControlException.mask'.
+  mask :: ((forall a. m a -> m a) -> m b) -> m b
+
+  -- | Like 'mask', but the masked computation is not interruptible (see
+  -- "Control.Exception"'s 'ControlException.uninterruptibleMask'. WARNING:
+  -- Only use if you need to mask exceptions around an interruptible operation
+  -- AND you can guarantee the interruptible operation will only block for a
+  -- short period of time. Otherwise you render the program/thread unresponsive
+  -- and/or unkillable.
+  uninterruptibleMask :: ((forall a. m a -> m a) -> m b) -> m b
+
 -- | A class for monads which provide for the ability to account for
--- all possible exit points from a computation, and to mask
--- asynchronous exceptions. Continuation-based monads are invalid
+-- all possible exit points from a computation. Continuation-based monads are invalid
 -- instances of this class.
 --
 -- Instances should ensure that, in the following code:
@@ -197,20 +212,7 @@ class MonadThrow m => MonadCatch m where
 -- never sees any of @f@'s non-IO effects, regardless of the layer ordering and
 -- regardless of whether @f@ throws an error. This is not the result of
 -- interacting effects, but a consequence of @MonadBaseControl@'s approach.
-class MonadCatch m => MonadMask m where
-  -- | Runs an action with asynchronous exceptions disabled. The action is
-  -- provided a method for restoring the async. environment to what it was
-  -- at the 'mask' call. See "Control.Exception"'s 'ControlException.mask'.
-  mask :: ((forall a. m a -> m a) -> m b) -> m b
-
-  -- | Like 'mask', but the masked computation is not interruptible (see
-  -- "Control.Exception"'s 'ControlException.uninterruptibleMask'. WARNING:
-  -- Only use if you need to mask exceptions around an interruptible operation
-  -- AND you can guarantee the interruptible operation will only block for a
-  -- short period of time. Otherwise you render the program/thread unresponsive
-  -- and/or unkillable.
-  uninterruptibleMask :: ((forall a. m a -> m a) -> m b) -> m b
-
+class MonadCatch m => MonadBracket m where
   -- | A generalized version of 'bracket' which uses 'ExitCase' to distinguish
   -- the different exit cases, and returns the values of both the 'use' and
   -- 'release' actions. In practice, this extra information is rarely needed,
@@ -222,15 +224,7 @@ class MonadCatch m => MonadMask m where
   -- execution of 'bracket', monad transformers need values to be threaded from
   -- 'use' to 'release' and from 'release' to the output value.
   --
-  -- /NOTE/ This method was added in version 0.9.0 of this
-  -- library. Previously, implementation of functions like 'bracket'
-  -- and 'finally' in this module were based on the 'mask' and
-  -- 'uninterruptibleMask' functions only, disallowing some classes of
-  -- tranformers from having @MonadMask@ instances (notably
-  -- multi-exit-point transformers like 'ExceptT'). If you are a
-  -- library author, you'll now need to provide an implementation for
-  -- this method. The @StateT@ implementation demonstrates most of the
-  -- subtleties:
+  -- __Implementation Examples__
   --
   -- @
   -- generalBracket acquire release use = StateT $ \s0 -> do
@@ -310,7 +304,7 @@ class MonadCatch m => MonadMask m where
     -- ^ inner action to perform with the resource
     -> m (b, c)
 
--- | A 'MonadMask' computation may either succeed with a value, abort with an
+-- | A 'MonadBracket' computation may either succeed with a value, abort with an
 -- exception, or abort for some other reason. For example, in @ExceptT e IO@
 -- you can use 'throwM' to abort with an exception ('ExitCaseException') or
 -- 'Control.Monad.Trans.Except.throwE' to abort with a value of type 'e'
@@ -335,7 +329,8 @@ instance MonadCatch IO where
 instance MonadMask IO where
   mask = ControlException.mask
   uninterruptibleMask = ControlException.uninterruptibleMask
-  generalBracket acquire release use = mask $ \unmasked -> do
+instance MonadBracket IO where
+  generalBracket acquire release use = ControlException.mask $ \unmasked -> do
     resource <- acquire
     b <- unmasked (use resource) `catch` \e -> do
       _ <- release resource (ExitCaseException e)
@@ -364,7 +359,7 @@ instance e ~ SomeException => MonadCatch (Either e) where
 instance e ~ SomeException => MonadMask (Either e) where
   mask f = f id
   uninterruptibleMask f = f id
-
+instance e ~ SomeException => MonadBracket (Either e) where
   generalBracket acquire release use =
     case acquire of
       Left e -> Left e
@@ -387,7 +382,7 @@ instance MonadMask m => MonadMask (IdentityT m) where
     IdentityT $ uninterruptibleMask $ \u -> runIdentityT (a $ q u)
       where q :: (m a -> m a) -> IdentityT m a -> IdentityT m a
             q u = IdentityT . u . runIdentityT
-
+instance MonadBracket m => MonadBracket (IdentityT m) where
   generalBracket acquire release use = IdentityT $
     generalBracket
       (runIdentityT acquire)
@@ -406,7 +401,7 @@ instance MonadMask m => MonadMask (LazyS.StateT s m) where
     LazyS.StateT $ \s -> uninterruptibleMask $ \u -> LazyS.runStateT (a $ q u) s
       where q :: (m (a, s) -> m (a, s)) -> LazyS.StateT s m a -> LazyS.StateT s m a
             q u (LazyS.StateT b) = LazyS.StateT (u . b)
-
+instance MonadBracket m => MonadBracket (LazyS.StateT s m) where
   generalBracket acquire release use = LazyS.StateT $ \s0 -> do
     -- This implementation is given as an example in the documentation of
     -- 'generalBracket', so when changing it, remember to update the
@@ -434,7 +429,7 @@ instance MonadMask m => MonadMask (StrictS.StateT s m) where
     StrictS.StateT $ \s -> uninterruptibleMask $ \u -> StrictS.runStateT (a $ q u) s
       where q :: (m (a, s) -> m (a, s)) -> StrictS.StateT s m a -> StrictS.StateT s m a
             q u (StrictS.StateT b) = StrictS.StateT (u . b)
-
+instance MonadBracket m => MonadBracket (StrictS.StateT s m) where
   generalBracket acquire release use = StrictS.StateT $ \s0 -> do
     ((b, _s2), (c, s3)) <- generalBracket
       (StrictS.runStateT acquire s0)
@@ -459,7 +454,7 @@ instance MonadMask m => MonadMask (ReaderT r m) where
     ReaderT $ \e -> uninterruptibleMask $ \u -> runReaderT (a $ q u) e
       where q :: (m a -> m a) -> ReaderT e m a -> ReaderT e m a
             q u (ReaderT b) = ReaderT (u . b)
-
+instance MonadBracket m => MonadBracket (ReaderT r m) where
   generalBracket acquire release use = ReaderT $ \r ->
     generalBracket
       (runReaderT acquire r)
@@ -478,7 +473,7 @@ instance (MonadMask m, Monoid w) => MonadMask (StrictW.WriterT w m) where
     StrictW.WriterT $ uninterruptibleMask $ \u -> StrictW.runWriterT (a $ q u)
       where q :: (m (a, w) -> m (a, w)) -> StrictW.WriterT w m a -> StrictW.WriterT w m a
             q u b = StrictW.WriterT $ u (StrictW.runWriterT b)
-
+instance (MonadBracket m, Monoid w) => MonadBracket (StrictW.WriterT w m) where
   generalBracket acquire release use = StrictW.WriterT $ do
     ((b, _w12), (c, w123)) <- generalBracket
       (StrictW.runWriterT acquire)
@@ -512,6 +507,7 @@ instance (MonadMask m, Monoid w) => MonadMask (LazyW.WriterT w m) where
       where q :: (m (a, w) -> m (a, w)) -> LazyW.WriterT w m a -> LazyW.WriterT w m a
             q u b = LazyW.WriterT $ u (LazyW.runWriterT b)
 
+instance (MonadBracket m, Monoid w) => MonadBracket (LazyW.WriterT w m) where
   generalBracket acquire release use = LazyW.WriterT $ do
     ((b, _w12), (c, w123)) <- generalBracket
       (LazyW.runWriterT acquire)
@@ -545,6 +541,7 @@ instance (MonadMask m, Monoid w) => MonadMask (LazyRWS.RWST r w s m) where
       where q :: (m (a, s, w) -> m (a, s, w)) -> LazyRWS.RWST r w s m a -> LazyRWS.RWST r w s m a
             q u (LazyRWS.RWST b) = LazyRWS.RWST $ \ r s -> u (b r s)
 
+instance (MonadBracket m, Monoid w) => MonadBracket (LazyRWS.RWST r w s m) where
   generalBracket acquire release use = LazyRWS.RWST $ \r s0 -> do
     ((b, _s2, _w12), (c, s3, w123)) <- generalBracket
       (LazyRWS.runRWST acquire r s0)
@@ -577,7 +574,7 @@ instance (MonadMask m, Monoid w) => MonadMask (StrictRWS.RWST r w s m) where
     StrictRWS.RWST $ \r s -> uninterruptibleMask $ \u -> StrictRWS.runRWST (a $ q u) r s
       where q :: (m (a, s, w) -> m (a, s, w)) -> StrictRWS.RWST r w s m a -> StrictRWS.RWST r w s m a
             q u (StrictRWS.RWST b) = StrictRWS.RWST $ \ r s -> u (b r s)
-
+instance (MonadBracket m, Monoid w) => MonadBracket (StrictRWS.RWST r w s m) where
   generalBracket acquire release use = StrictRWS.RWST $ \r s0 -> do
     ((b, _s2, _w12), (c, s3, w123)) <- generalBracket
       (StrictRWS.runRWST acquire r s0)
@@ -622,7 +619,7 @@ instance MonadMask m => MonadMask (MaybeT m) where
       q :: (m (Maybe a) -> m (Maybe a))
         -> MaybeT m a -> MaybeT m a
       q u (MaybeT b) = MaybeT (u b)
-
+instance MonadBracket m => MonadBracket (MaybeT m) where
   generalBracket acquire release use = MaybeT $ do
     (eb, ec) <- generalBracket
       (runMaybeT acquire)
@@ -656,7 +653,7 @@ instance (Error e, MonadMask m) => MonadMask (ErrorT e m) where
       q :: (m (Either e a) -> m (Either e a))
         -> ErrorT e m a -> ErrorT e m a
       q u (ErrorT b) = ErrorT (u b)
-
+instance (Error e, MonadBracket m) => MonadBracket (ErrorT e m) where
   generalBracket acquire release use = ErrorT $ do
     (eb, ec) <- generalBracket
       (runErrorT acquire)
@@ -693,7 +690,7 @@ instance MonadMask m => MonadMask (ExceptT e m) where
       q :: (m (Either e a) -> m (Either e a))
         -> ExceptT e m a -> ExceptT e m a
       q u (ExceptT b) = ExceptT (u b)
-
+instance MonadBracket m => MonadBracket (ExceptT e m) where
   generalBracket acquire release use = ExceptT $ do
     -- This implementation is given as an example in the documentation of
     -- 'generalBracket', so when changing it, remember to update the
@@ -829,7 +826,7 @@ onException action handler = action `catchAll` \e -> handler >> throwM e
 -- except that 'onError' has a more constrained type.
 --
 -- @since 0.10.0
-onError :: MonadMask m => m a -> m b -> m a
+onError :: MonadBracket m => m a -> m b -> m a
 onError action handler = bracketOnError (return ()) (const handler) (const action)
 
 -- | Generalized abstracted pattern of safe resource acquisition and release
@@ -845,24 +842,24 @@ onError action handler = bracketOnError (return ()) (const handler) (const actio
 -- signature from "Control.Exception"), and is often more convenient to use. By
 -- contrast, 'generalBracket' is more expressive, allowing us to implement
 -- other functions like 'bracketOnError'.
-bracket :: MonadMask m => m a -> (a -> m c) -> (a -> m b) -> m b
+bracket :: MonadBracket m => m a -> (a -> m c) -> (a -> m b) -> m b
 bracket acquire release = liftM fst . generalBracket
   acquire
   (\a _exitCase -> release a)
 
 -- | Version of 'bracket' without any value being passed to the second and
 -- third actions.
-bracket_ :: MonadMask m => m a -> m c -> m b -> m b
+bracket_ :: MonadBracket m => m a -> m c -> m b -> m b
 bracket_ before after action = bracket before (const after) (const action)
 
 -- | Perform an action with a finalizer action that is run, even if an
 -- error occurs.
-finally :: MonadMask m => m a -> m b -> m a
+finally :: MonadBracket m => m a -> m b -> m a
 finally action finalizer = bracket_ (return ()) finalizer action
 
 -- | Like 'bracket', but only performs the final action if an error is
 -- thrown by the in-between computation.
-bracketOnError :: MonadMask m => m a -> (a -> m c) -> (a -> m b) -> m b
+bracketOnError :: MonadBracket m => m a -> (a -> m c) -> (a -> m b) -> m b
 bracketOnError acquire release = liftM fst . generalBracket
   acquire
   (\a exitCase -> case exitCase of
