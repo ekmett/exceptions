@@ -1,6 +1,6 @@
 name:          exceptions
 category:      Control, Exceptions, Monad
-version:       0.10.4
+version:       2.0
 cabal-version: >= 1.10
 license:       BSD3
 license-file:  LICENSE
