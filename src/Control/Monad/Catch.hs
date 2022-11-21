@@ -94,7 +94,7 @@ import Control.Monad.Trans.Except (ExceptT(..), runExceptT)
 import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Reader (ReaderT(..), runReaderT)
-import GHC.Stack (HasCallStack)
+import Data.CallStack (HasCallStack)
 
 import Language.Haskell.TH.Syntax (Q)
 
