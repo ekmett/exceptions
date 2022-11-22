@@ -122,12 +122,17 @@ import Control.Applicative
 #if __GLASGOW_HASKELL__ >= 800
 import GHC.Stack (HasCallStack, withFrozenCallStack)
 #else
-import Data.CallStack (HasCallStack, withFrozenCallStack)
+import Data.CallStack (HasCallStack)
 #endif
 
 #if !(MIN_VERSION_transformers(0,6,0))
 import Control.Monad.Trans.Error (ErrorT(..), Error, runErrorT)
 import Control.Monad.Trans.List (ListT(..), runListT)
+#endif
+
+#if __GLASGOW_HASKELL__ < 800
+withFrozenCallStack :: a -> a
+withFrozenCallStack a = a
 #endif
 
 ------------------------------------------------------------------------------
