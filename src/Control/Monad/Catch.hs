@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
