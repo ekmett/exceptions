@@ -49,11 +49,11 @@ library
     base                       >= 4.3      && < 5,
     stm                        >= 2.2      && < 3,
     template-haskell           >= 2.2      && < 2.20,
-    mtl                        >= 2.0      && < 2.4,
-    call-stack                 >= 0.1      && < 0.5
+    mtl                        >= 2.0      && < 2.4
 
   if !impl(ghc >= 8.0)
-    build-depends: fail        == 4.9.*
+    build-depends: call-stack  >= 0.1      && < 0.5,
+                   fail        == 4.9.*
 
   if flag(transformers-0-4)
     build-depends:
