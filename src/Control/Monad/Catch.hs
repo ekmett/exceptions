@@ -748,33 +748,12 @@ instance MonadCatch m => MonadCatch (ListT m) where
 
 -- | Like 'mask', but does not pass a @restore@ action to the argument.
 mask_ :: (HasCallStack, MonadMask m) => m a -> m a
-mask_ io = mask $ \_ -> io
+mask_ io = withFrozenCallStack (\f -> mask (\x -> f x)) (\_ -> io)
 
 -- | Like 'uninterruptibleMask', but does not pass a @restore@ action to the
 -- argument.
 uninterruptibleMask_ :: (HasCallStack, MonadMask m) => m a -> m a
-uninterruptibleMask_ io = uninterruptibleMask (\_ -> io)
-
--- You may wonder why there isn't a `withFrozenCallStack` on `mask_` and
--- `uninterruptibleMask_`. The reason is that GHC is incapable of unifying
--- the type due to the RankNType in `mask`.
---
--- src/Control/Monad/Catch.hs:746:32: error:
---     • Couldn't match type ‘p1’ with ‘forall a1. m a1 -> m a1’
---       Expected: (forall a1. m a1 -> m a1) -> m a
---         Actual: p1 -> m a
---       Cannot instantiate unification variable ‘p1’
---       with a type involving polytypes: forall a1. m a1 -> m a1
---     • In the first argument of ‘withFrozenCallStack’, namely ‘mask’
---       In the first argument of ‘($)’, namely ‘withFrozenCallStack mask’
---       In the expression: withFrozenCallStack mask $ \ _ -> io
---     • Relevant bindings include
---         io :: m a (bound at src/Control/Monad/Catch.hs:746:7)
---         mask_ :: m a -> m a (bound at src/Control/Monad/Catch.hs:746:1)
---     |
--- 746 | mask_ io = withFrozenCallStack mask $ \_ -> io
---     |                                ^^^^
---
+uninterruptibleMask_ io = withFrozenCallStack (\f -> uninterruptibleMask (\x -> f x)) (\_ -> io)
 
 -- | Catches all exceptions, and somewhat defeats the purpose of the extensible
 -- exception system. Use sparingly.
