@@ -1,3 +1,9 @@
+next [????.??.??]
+-----------------
+* The class methods and functions in `Control.Monad.Catch` now have
+  `HasCallStack` constraints.
+* Drop support for GHC 7.0 and 7.2.
+
 0.10.5 [2022.05.07]
 -------------------
 * Allow building with `transformers-0.6.*` and `mtl-2.3.*`.
