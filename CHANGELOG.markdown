@@ -1,5 +1,5 @@
-next [????.??.??]
------------------
+0.10.6 [2022.11.30]
+-------------------
 * The class methods and functions in `Control.Monad.Catch` now have
   `HasCallStack` constraints.
 * Drop support for GHC 7.0 and 7.2.
