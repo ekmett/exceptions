@@ -1,5 +1,5 @@
-next [????.??.??]
------------------
+0.10.7 [2022.12.04]
+-------------------
 * On pre-8.0 GHCs, drop the `call-stack` dependency. This dependency was
   introduced in `exceptions-0.10.6`, but it induced breakage in libraries
   that derived instances of `MonadThrow`, `MonadCatch`, or `MonadMask` for
