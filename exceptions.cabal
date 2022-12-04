@@ -51,8 +51,7 @@ library
     mtl                        >= 2.0      && < 2.4
 
   if !impl(ghc >= 8.0)
-    build-depends: call-stack  >= 0.1      && < 0.5,
-                   fail        == 4.9.*
+    build-depends: fail        == 4.9.*
 
   if flag(transformers-0-4)
     build-depends:
