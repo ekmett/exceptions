@@ -40,8 +40,8 @@ import qualified Control.Monad.Writer.Strict as StrictWriter
 import qualified Control.Monad.RWS.Lazy as LazyRWS
 import qualified Control.Monad.RWS.Strict as StrictRWS
 #if !(MIN_VERSION_transformers(0,6,0))
-import Control.Monad.Error (ErrorT(..))
-import Control.Monad.List (ListT(..))
+import Control.Monad.Trans.Error (ErrorT(..))
+import Control.Monad.Trans.List (ListT(..))
 #endif
 
 import Control.Monad.Catch
