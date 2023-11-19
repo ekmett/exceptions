@@ -270,21 +270,19 @@ class MonadCatch m => MonadMask m where
   -- this method. The @StateT@ implementation demonstrates most of the
   -- subtleties:
   --
-  -- @
-  -- generalBracket acquire release use = StateT $ \s0 -> do
-  --   ((b, _s2), (c, s3)) <- generalBracket
-  --     (runStateT acquire s0)
-  --     (\(resource, s1) exitCase -> case exitCase of
-  --       ExitCaseSuccess (b, s2) -> runStateT (release resource (ExitCaseSuccess b)) s2
-  --
-  --       -- In the two other cases, the base monad overrides @use@'s state
-  --       -- changes and the state reverts to @s1@.
-  --       ExitCaseException e     -> runStateT (release resource (ExitCaseException e)) s1
-  --       ExitCaseAbort           -> runStateT (release resource ExitCaseAbort) s1
-  --     )
-  --     (\(resource, s1) -> runStateT (use resource) s1)
-  --   return ((b, c), s3)
-  -- @
+  -- > generalBracket acquire release use = StateT $ \s0 -> do
+  -- >   ((b, _s2), (c, s3)) <- generalBracket
+  -- >     (runStateT acquire s0)
+  -- >     (\(resource, s1) exitCase -> case exitCase of
+  -- >       ExitCaseSuccess (b, s2) -> runStateT (release resource (ExitCaseSuccess b)) s2
+  -- >
+  -- >       -- In the two other cases, the base monad overrides `use`'s state
+  -- >       -- changes and the state reverts to `s1`.
+  -- >       ExitCaseException e     -> runStateT (release resource (ExitCaseException e)) s1
+  -- >       ExitCaseAbort           -> runStateT (release resource ExitCaseAbort) s1
+  -- >     )
+  -- >     (\(resource, s1) -> runStateT (use resource) s1)
+  -- >   return ((b, c), s3)
   --
   -- The @StateT s m@ implementation of @generalBracket@ delegates to the @m@
   -- implementation of @generalBracket@. The @acquire@, @use@, and @release@
@@ -318,25 +316,23 @@ class MonadCatch m => MonadMask m where
   -- take priority. Here is an implementation for @ExceptT@ which demonstrates
   -- how to do this.
   --
-  -- @
-  -- generalBracket acquire release use = ExceptT $ do
-  --   (eb, ec) <- generalBracket
-  --     (runExceptT acquire)
-  --     (\eresource exitCase -> case eresource of
-  --       Left e -> return (Left e) -- nothing to release, acquire didn't succeed
-  --       Right resource -> case exitCase of
-  --         ExitCaseSuccess (Right b) -> runExceptT (release resource (ExitCaseSuccess b))
-  --         ExitCaseException e       -> runExceptT (release resource (ExitCaseException e))
-  --         _                         -> runExceptT (release resource ExitCaseAbort))
-  --     (either (return . Left) (runExceptT . use))
-  --   return $ do
-  --     -- The order in which we perform those two 'Either' effects determines
-  --     -- which error will win if they are both 'Left's. We want the error from
-  --     -- 'release' to win.
-  --     c <- ec
-  --     b <- eb
-  --     return (b, c)
-  -- @
+  -- > generalBracket acquire release use = ExceptT $ do
+  -- >   (eb, ec) <- generalBracket
+  -- >     (runExceptT acquire)
+  -- >     (\eresource exitCase -> case eresource of
+  -- >       Left e -> return (Left e) -- nothing to release, `acquire` didn't succeed
+  -- >       Right resource -> case exitCase of
+  -- >         ExitCaseSuccess (Right b) -> runExceptT (release resource (ExitCaseSuccess b))
+  -- >         ExitCaseException e       -> runExceptT (release resource (ExitCaseException e))
+  -- >         _                         -> runExceptT (release resource ExitCaseAbort))
+  -- >     (either (return . Left) (runExceptT . use))
+  -- >   return $ do
+  -- >     -- The order in which we perform those two `Either` effects determines
+  -- >     -- which error will win if they are both `Left`s. We want the error from
+  -- >     -- `release` to win.
+  -- >     c <- ec
+  -- >     b <- eb
+  -- >     return (b, c)
   --
   -- @since 0.9.0
   generalBracket
