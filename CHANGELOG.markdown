@@ -1,5 +1,6 @@
 next [????.??.??]
 -----------------
+* Allow building with `template-haskell-2.22.*`.
 * Make the test suite build with GHC 9.4 and `mtl-2.3.1`.
 
 0.10.7 [2022.12.04]
