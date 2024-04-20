@@ -1,3 +1,7 @@
+next [????.??.??]
+-----------------
+* Make the test suite build with GHC 9.4 and `mtl-2.3.1`.
+
 0.10.7 [2022.12.04]
 -------------------
 * On pre-8.0 GHCs, drop the `call-stack` dependency. This dependency was
