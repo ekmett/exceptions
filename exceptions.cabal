@@ -88,7 +88,7 @@ test-suite exceptions-tests
     test-framework             >= 0.8      && < 0.9,
     test-framework-hunit       >= 0.3      && < 0.4,
     test-framework-quickcheck2 >= 0.3      && < 0.4,
-    QuickCheck                 >= 2.5      && < 2.15
+    QuickCheck                 >= 2.5      && < 2.16
 
   if flag(transformers-0-4)
     build-depends:
