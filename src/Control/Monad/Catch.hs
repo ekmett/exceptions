@@ -35,7 +35,7 @@
 -- with them, though doesn't mimic the module structure or offer the complete
 -- range of features in those packages.
 --
--- This is very similar to 'ErrorT' and 'MonadError', but based on features of
+-- This is very similar to 'ExceptT' and 'MonadError', but based on features of
 -- "Control.Exception". In particular, it handles the complex case of
 -- asynchronous exceptions by including 'mask' in the typeclass. Note that the
 -- extensible exceptions feature relies on the RankNTypes language extension.
