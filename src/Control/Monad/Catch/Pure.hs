@@ -5,18 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
-
-#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 702
 {-# LANGUAGE Trustworthy #-}
-#endif
-
-#ifndef MIN_VERSION_transformers
-#define MIN_VERSION_transformers(x,y,z) 1
-#endif
-
-#ifndef MIN_VERSION_mtl
-#define MIN_VERSION_mtl(x,y,z) 1
-#endif
 
 --------------------------------------------------------------------
 -- |
@@ -46,11 +35,7 @@ module Control.Monad.Catch.Pure (
   , module Control.Monad.Catch
   ) where
 
-#if defined(__GLASGOW_HASKELL__) && (__GLASGOW_HASKELL__ >= 706)
 import Prelude hiding (foldr)
-#else
-import Prelude hiding (catch, foldr)
-#endif
 
 import Control.Applicative
 import Control.Monad.Catch
@@ -63,10 +48,6 @@ import Control.Monad.RWS (MonadRWS)
 import Control.Monad.State (MonadState(..))
 import Control.Monad.Trans.Class (MonadTrans(..))
 import Control.Monad.Writer (MonadWriter(..))
-#if __GLASGOW_HASKELL__ < 710
-import Data.Foldable
-import Data.Monoid (Monoid(..))
-#endif
 import Data.Functor.Identity
 import Data.Traversable as Traversable
 
@@ -192,9 +173,7 @@ instance Monad m => MonadMask (CatchT m) where
 instance MonadState s m => MonadState s (CatchT m) where
   get = lift get
   put = lift . put
-#if MIN_VERSION_mtl(2,1,0)
   state = lift . state
-#endif
 
 instance MonadReader e m => MonadReader e (CatchT m) where
   ask = lift ask
@@ -210,9 +189,7 @@ instance MonadWriter w m => MonadWriter w (CatchT m) where
     return $! case a of
         Left  l      -> (Left  l, id)
         Right (r, f) -> (Right r, f)
-#if MIN_VERSION_mtl(2,1,0)
   writer aw = CatchT (Right `liftM` writer aw)
-#endif
 
 instance MonadRWS r w s m => MonadRWS r w s (CatchT m)
 

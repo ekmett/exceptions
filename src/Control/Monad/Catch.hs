@@ -7,17 +7,10 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-
-#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 702
 {-# LANGUAGE Trustworthy #-}
-#endif
-
-#ifndef MIN_VERSION_transformers
-#define MIN_VERSION_transformers(x,y,z) 1
-#endif
 
 #if !(MIN_VERSION_transformers(0,6,0))
-{-# OPTIONS_GHC -fno-warn-deprecations #-}
+{-# OPTIONS_GHC -Wno-deprecations #-}
 #endif
 --------------------------------------------------------------------
 -- |
@@ -87,6 +80,7 @@ import qualified Control.Monad.Trans.State.Strict as StrictS
 import qualified Control.Monad.Trans.Writer.Lazy as LazyW
 import qualified Control.Monad.Trans.Writer.Strict as StrictW
 import Control.Monad.ST (ST)
+import Control.Monad.ST.Unsafe (unsafeIOToST)
 import Control.Monad.STM (STM)
 import Control.Monad.Trans.Class (MonadTrans(..))
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
@@ -95,66 +89,13 @@ import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Reader (ReaderT(..), runReaderT)
 
-import Language.Haskell.TH.Syntax (Q)
-
-#if MIN_VERSION_base(4,4,0)
-import Control.Monad.ST.Unsafe (unsafeIOToST)
-#else
-import Control.Monad.ST (unsafeIOToST)
-#endif
-
-#if __GLASGOW_HASKELL__ < 706
-import Prelude hiding (catch, foldr)
-import Data.Foldable
-import Data.Monoid
-#elif __GLASGOW_HASKELL__ < 710
-import Prelude hiding (foldr)
-import Data.Foldable
-import Data.Monoid
-#endif
-
-#if __GLASGOW_HASKELL__ < 710
-import Control.Applicative
-#endif
-
-#if __GLASGOW_HASKELL__ >= 800
 import GHC.Stack (HasCallStack, withFrozenCallStack)
-#endif
+
+import Language.Haskell.TH.Syntax (Q)
 
 #if !(MIN_VERSION_transformers(0,6,0))
 import Control.Monad.Trans.Error (ErrorT(..), Error, runErrorT)
 import Control.Monad.Trans.List (ListT(..), runListT)
-#endif
-
--- We use the following bit of CPP to enable the use of HasCallStack
--- constraints without breaking the build for pre-8.0 GHCs, which did not
--- provide GHC.Stack. We are careful to always write constraints like this:
---
---   HAS_CALL_STACK => MonadThrow m => ...
---
--- Instead of like this:
---
---   (HAS_CALL_STACK, MonadThrow e) => ...
---
--- The latter is equivalent to (() :: Constraint, MonadThrow e) => ..., which
--- requires ConstraintKinds. More importantly, it's slightly less efficient,
--- since it requires passing an empty constraint tuple dictionary around.
---
--- Note that we do /not/ depend on the call-stack compatibility library to
--- provide HasCallStack on older GHCs. We tried this at one point, but we
--- discovered that downstream libraries failed to build because combining
--- call-stack with GeneralizedNewtypeDeriving on older GHCs would require the
--- use of ConstraintKinds/FlexibleContexts, which downstream libraries did not
--- enable. (See #91.) The CPP approach that we use now, while somewhat clunky,
--- avoids these issues by not requiring any additional language extensions for
--- downstream users.
-#if __GLASGOW_HASKELL__ >= 800
-# define HAS_CALL_STACK HasCallStack
-#else
-# define HAS_CALL_STACK ()
-
-withFrozenCallStack :: a -> a
-withFrozenCallStack a = a
 #endif
 
 ------------------------------------------------------------------------------
@@ -178,7 +119,7 @@ class Monad m => MonadThrow m where
   -- Should satisfy the law:
   --
   -- > throwM e >> f = throwM e
-  throwM :: HAS_CALL_STACK => Exception e => e -> m a
+  throwM :: (HasCallStack, Exception e) => e -> m a
 
 -- | A class for monads which allow exceptions to be caught, in particular
 -- exceptions which were thrown by 'throwM'.
@@ -198,7 +139,7 @@ class MonadThrow m => MonadCatch m where
   -- action. Note that type of the type of the argument to the handler will
   -- constrain which exceptions are caught. See "Control.Exception"'s
   -- 'ControlException.catch'.
-  catch :: HAS_CALL_STACK => Exception e => m a -> (e -> m a) -> m a
+  catch :: (HasCallStack, Exception e) => m a -> (e -> m a) -> m a
 
 -- | A class for monads which provide for the ability to account for
 -- all possible exit points from a computation, and to mask
@@ -239,7 +180,7 @@ class MonadCatch m => MonadMask m where
   -- | Runs an action with asynchronous exceptions disabled. The action is
   -- provided a method for restoring the async. environment to what it was
   -- at the 'mask' call. See "Control.Exception"'s 'ControlException.mask'.
-  mask :: HAS_CALL_STACK => ((forall a. m a -> m a) -> m b) -> m b
+  mask :: HasCallStack => ((forall a. m a -> m a) -> m b) -> m b
 
   -- | Like 'mask', but the masked computation is not interruptible (see
   -- "Control.Exception"'s 'ControlException.uninterruptibleMask'. WARNING:
@@ -247,7 +188,7 @@ class MonadCatch m => MonadMask m where
   -- AND you can guarantee the interruptible operation will only block for a
   -- short period of time. Otherwise you render the program/thread unresponsive
   -- and/or unkillable.
-  uninterruptibleMask :: HAS_CALL_STACK => ((forall a. m a -> m a) -> m b) -> m b
+  uninterruptibleMask :: HasCallStack => ((forall a. m a -> m a) -> m b) -> m b
 
   -- | A generalized version of 'bracket' which uses 'ExitCase' to distinguish
   -- the different exit cases, and returns the values of both the 'use' and
@@ -336,7 +277,7 @@ class MonadCatch m => MonadMask m where
   --
   -- @since 0.9.0
   generalBracket
-    :: HAS_CALL_STACK
+    :: HasCallStack
     => m a
     -- ^ acquire some resource
     -> (a -> ExitCase b -> m c)
@@ -765,12 +706,12 @@ instance MonadCatch m => MonadCatch (ListT m) where
 ------------------------------------------------------------------------------
 
 -- | Like 'mask', but does not pass a @restore@ action to the argument.
-mask_ :: HAS_CALL_STACK => MonadMask m => m a -> m a
+mask_ :: (HasCallStack, MonadMask m) => m a -> m a
 mask_ io = withFrozenCallStack (\f -> mask (\x -> f x)) (\_ -> io)
 
 -- | Like 'uninterruptibleMask', but does not pass a @restore@ action to the
 -- argument.
-uninterruptibleMask_ :: HAS_CALL_STACK => MonadMask m => m a -> m a
+uninterruptibleMask_ :: (HasCallStack, MonadMask m) => m a -> m a
 uninterruptibleMask_ io = withFrozenCallStack (\f -> uninterruptibleMask (\x -> f x)) (\_ -> io)
 
 -- | Catches all exceptions, and somewhat defeats the purpose of the extensible
@@ -778,57 +719,57 @@ uninterruptibleMask_ io = withFrozenCallStack (\f -> uninterruptibleMask (\x -> 
 --
 -- /NOTE/ This catches all /exceptions/, but if the monad supports other ways of
 -- aborting the computation, those other kinds of errors will not be caught.
-catchAll :: HAS_CALL_STACK => MonadCatch m => m a -> (SomeException -> m a) -> m a
+catchAll :: (HasCallStack, MonadCatch m) => m a -> (SomeException -> m a) -> m a
 catchAll = withFrozenCallStack catch
 
 -- | Catch all 'IOError' (eqv. 'IOException') exceptions. Still somewhat too
 -- general, but better than using 'catchAll'. See 'catchIf' for an easy way
 -- of catching specific 'IOError's based on the predicates in "System.IO.Error".
-catchIOError :: HAS_CALL_STACK => MonadCatch m => m a -> (IOError -> m a) -> m a
+catchIOError :: (HasCallStack, MonadCatch m) => m a -> (IOError -> m a) -> m a
 catchIOError = withFrozenCallStack catch
 
 -- | Catch exceptions only if they pass some predicate. Often useful with the
 -- predicates for testing 'IOError' values in "System.IO.Error".
-catchIf :: HAS_CALL_STACK => (MonadCatch m, Exception e) =>
+catchIf :: (HasCallStack, MonadCatch m, Exception e) =>
     (e -> Bool) -> m a -> (e -> m a) -> m a
 catchIf f a b = withFrozenCallStack catch a (\e -> if f e then b e else throwM e)
 
 -- | A more generalized way of determining which exceptions to catch at
 -- run time.
-catchJust :: HAS_CALL_STACK => (MonadCatch m, Exception e) =>
+catchJust :: (HasCallStack, MonadCatch m, Exception e) =>
     (e -> Maybe b) -> m a -> (b -> m a) -> m a
 catchJust f a b = withFrozenCallStack catch a (\e -> maybe (throwM e) b $ f e)
 
 -- | Flipped 'catch'. See "Control.Exception"'s 'ControlException.handle'.
-handle :: HAS_CALL_STACK => (MonadCatch m, Exception e) => (e -> m a) -> m a -> m a
+handle :: (HasCallStack, MonadCatch m, Exception e) => (e -> m a) -> m a -> m a
 handle = flip (withFrozenCallStack catch)
 {-# INLINE handle #-}
 
 -- | Flipped 'catchIOError'
-handleIOError :: HAS_CALL_STACK => MonadCatch m => (IOError -> m a) -> m a -> m a
+handleIOError :: (HasCallStack, MonadCatch m) => (IOError -> m a) -> m a -> m a
 handleIOError = withFrozenCallStack handle
 
 -- | Flipped 'catchAll'
-handleAll :: HAS_CALL_STACK => MonadCatch m => (SomeException -> m a) -> m a -> m a
+handleAll :: (HasCallStack, MonadCatch m) => (SomeException -> m a) -> m a -> m a
 handleAll = withFrozenCallStack handle
 
 -- | Flipped 'catchIf'
-handleIf :: HAS_CALL_STACK => (MonadCatch m, Exception e) => (e -> Bool) -> (e -> m a) -> m a -> m a
+handleIf :: (HasCallStack, MonadCatch m, Exception e) => (e -> Bool) -> (e -> m a) -> m a -> m a
 handleIf f = flip (withFrozenCallStack catchIf f)
 
 -- | Flipped 'catchJust'. See "Control.Exception"'s 'ControlException.handleJust'.
-handleJust :: HAS_CALL_STACK => (MonadCatch m, Exception e) => (e -> Maybe b) -> (b -> m a) -> m a -> m a
+handleJust :: (HasCallStack, MonadCatch m, Exception e) => (e -> Maybe b) -> (b -> m a) -> m a -> m a
 handleJust f = flip (withFrozenCallStack catchJust f)
 {-# INLINE handleJust #-}
 
 -- | Similar to 'catch', but returns an 'Either' result. See "Control.Exception"'s
 -- 'Control.Exception.try'.
-try :: HAS_CALL_STACK => (MonadCatch m, Exception e) => m a -> m (Either e a)
+try :: (HasCallStack, MonadCatch m, Exception e) => m a -> m (Either e a)
 try a = withFrozenCallStack catch (Right `liftM` a) (return . Left)
 
 -- | A variant of 'try' that takes an exception predicate to select
 -- which exceptions are caught. See "Control.Exception"'s 'ControlException.tryJust'
-tryJust :: HAS_CALL_STACK => (MonadCatch m, Exception e) =>
+tryJust :: (HasCallStack, MonadCatch m, Exception e) =>
     (e -> Maybe b) -> m a -> m (Either b a)
 tryJust f a = withFrozenCallStack catch (Right `liftM` a) (\e -> maybe (throwM e) (return . Left) (f e))
 
@@ -839,7 +780,7 @@ instance Monad m => Functor (Handler m) where
   fmap f (Handler h) = Handler (liftM f . h)
 
 -- | Catches different sorts of exceptions. See "Control.Exception"'s 'ControlException.catches'
-catches :: HAS_CALL_STACK => (Foldable f, MonadCatch m) => m a -> f (Handler m a) -> m a
+catches :: (HasCallStack, Foldable f, MonadCatch m) => m a -> f (Handler m a) -> m a
 catches a hs = withFrozenCallStack catch a handler
   where
     handler e = foldr probe (throwM e) hs
@@ -852,7 +793,7 @@ catches a hs = withFrozenCallStack catch a handler
 -- /NOTE/ The action is only run if an /exception/ is thrown. If the monad
 -- supports other ways of aborting the computation, the action won't run if
 -- those other kinds of errors are thrown. See 'onError'.
-onException :: HAS_CALL_STACK => MonadCatch m => m a -> m b -> m a
+onException :: (HasCallStack, MonadCatch m) => m a -> m b -> m a
 onException action handler = withFrozenCallStack catchAll action (\e -> handler >> throwM e)
 
 -- | Run an action only if an error is thrown in the main action. Unlike
@@ -866,7 +807,7 @@ onException action handler = withFrozenCallStack catchAll action (\e -> handler 
 -- except that 'onError' has a more constrained type.
 --
 -- @since 0.10.0
-onError :: HAS_CALL_STACK => MonadMask m => m a -> m b -> m a
+onError :: (HasCallStack, MonadMask m) => m a -> m b -> m a
 onError action handler = withFrozenCallStack bracketOnError (return ()) (const handler) (const action)
 
 -- | Generalized abstracted pattern of safe resource acquisition and release
@@ -882,24 +823,24 @@ onError action handler = withFrozenCallStack bracketOnError (return ()) (const h
 -- signature from "Control.Exception"), and is often more convenient to use. By
 -- contrast, 'generalBracket' is more expressive, allowing us to implement
 -- other functions like 'bracketOnError'.
-bracket :: HAS_CALL_STACK => MonadMask m => m a -> (a -> m c) -> (a -> m b) -> m b
+bracket :: (HasCallStack, MonadMask m) => m a -> (a -> m c) -> (a -> m b) -> m b
 bracket acquire release = liftM fst . withFrozenCallStack generalBracket
   acquire
   (\a _exitCase -> release a)
 
 -- | Version of 'bracket' without any value being passed to the second and
 -- third actions.
-bracket_ :: HAS_CALL_STACK => MonadMask m => m a -> m c -> m b -> m b
+bracket_ :: (HasCallStack, MonadMask m) => m a -> m c -> m b -> m b
 bracket_ before after action = withFrozenCallStack bracket before (const after) (const action)
 
 -- | Perform an action with a finalizer action that is run, even if an
 -- error occurs.
-finally :: HAS_CALL_STACK => MonadMask m => m a -> m b -> m a
+finally :: (HasCallStack, MonadMask m) => m a -> m b -> m a
 finally action finalizer = withFrozenCallStack bracket_ (return ()) finalizer action
 
 -- | Like 'bracket', but only performs the final action if an error is
 -- thrown by the in-between computation.
-bracketOnError :: HAS_CALL_STACK => MonadMask m => m a -> (a -> m c) -> (a -> m b) -> m b
+bracketOnError :: (HasCallStack, MonadMask m) => m a -> (a -> m c) -> (a -> m b) -> m b
 bracketOnError acquire release = liftM fst . withFrozenCallStack generalBracket
   acquire
   (\a exitCase -> case exitCase of
