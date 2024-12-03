@@ -24,6 +24,7 @@ tested-with:   GHC == 8.0.2
              , GHC == 9.6.6
              , GHC == 9.8.4
              , GHC == 9.10.1
+             , GHC == 9.12.1
 synopsis:      Extensible optionally-pure exceptions
 description:   Extensible optionally-pure exceptions.
 
@@ -44,7 +45,7 @@ library
     base                       >= 4.9      && < 5,
     mtl                        >= 2.2      && < 2.4,
     stm                        >= 2.2      && < 3,
-    template-haskell           >= 2.11     && < 2.23,
+    template-haskell           >= 2.11     && < 2.24,
     transformers               >= 0.5.2.0  && < 0.7
 
   exposed-modules:
