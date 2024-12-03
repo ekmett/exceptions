@@ -97,7 +97,11 @@ import GHC.Stack (HasCallStack, withFrozenCallStack)
 import Prelude hiding(foldr)
 import Data.Foldable
 #else
+#  if __GLASGOW_HASKELL__ >= 914
+import Language.Haskell.TH.Lift (Q)
+#  else
 import Language.Haskell.TH.Syntax (Q)
+#  endif
 #endif
 
 #if MIN_VERSION_transformers(0,5,6)
