@@ -21,11 +21,11 @@ import Control.Monad.Trans.Maybe (MaybeT(..))
 import Control.Monad.Trans.Except (ExceptT(..), runExceptT)
 import Control.Monad.STM (STM, atomically)
 --import Control.Monad.Cont (ContT(..))
-import Test.Framework (Test, testGroup)
-import Test.Framework.Providers.HUnit (testCase)
-import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.QuickCheck (Property, ioProperty, once)
 import Test.QuickCheck.Monadic (monadic, run, assert)
+import Test.Tasty (TestTree, testGroup)
+import Test.Tasty.HUnit (testCase)
+import Test.Tasty.QuickCheck (testProperty)
 import qualified Control.Monad.State.Lazy as LazyState
 import qualified Control.Monad.State.Strict as StrictState
 import qualified Control.Monad.Writer.Lazy as LazyWriter
@@ -89,7 +89,7 @@ testDetectableEffect (SomeDetectableEffect (DetectableEffect mspec effectDetecto
           detector
         assert effectWasPerformed
 
-tests :: Test
+tests :: TestTree
 tests = testGroup "Control.Monad.Catch.Tests" $
    ([ mkMonadCatch
     , mkCatchJust
@@ -230,11 +230,11 @@ tests = testGroup "Control.Monad.Catch.Tests" $
     mkCatchJust = mkMSpecTest "catchJust" testCatchJust
     mkDetectableEffect = mkDetectableEffectTest "effect during release" testDetectableEffect
 
-    mkMSpecTest :: String -> (SomeMSpec -> Property) -> SomeMSpec -> Test
+    mkMSpecTest :: String -> (SomeMSpec -> Property) -> SomeMSpec -> TestTree
     mkMSpecTest name test = \someMSpec@(SomeMSpec spec) ->
         testProperty (name ++ " " ++ mspecName spec) $ once $ test someMSpec
 
-    mkDetectableEffectTest :: String -> (SomeDetectableEffect -> Property) -> SomeDetectableEffect -> Test
+    mkDetectableEffectTest :: String -> (SomeDetectableEffect -> Property) -> SomeDetectableEffect -> TestTree
     mkDetectableEffectTest name test = \someDetectableEffect@(SomeDetectableEffect detectableEffect) ->
         let testName = name ++ " " ++ mspecName (detectableEffectMSpec detectableEffect)
         in testProperty testName $ once $ test someDetectableEffect

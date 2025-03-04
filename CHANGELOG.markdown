@@ -1,3 +1,7 @@
+next [????.??.??]
+-----------------
+* Replace `test-framework` with `tasty` in the test suite.
+
 0.10.9 [2024.10.31]
 -------------------
 * Drop support for pre-8.0 versions of GHC.

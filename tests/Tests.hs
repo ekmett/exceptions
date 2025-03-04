@@ -1,10 +1,11 @@
 module Main where
 
-import Test.Framework (defaultMain)
+import Test.Tasty (defaultMain, testGroup)
 
 import qualified Control.Monad.Catch.Tests
 
 main :: IO ()
-main = defaultMain
+main = defaultMain $
+  testGroup "exceptions"
     [ Control.Monad.Catch.Tests.tests
     ]
