@@ -69,8 +69,8 @@ test-suite exceptions-tests
     mtl,
     stm,
     template-haskell,
-    transformers               >= 0.5.2.0  && < 0.7,
-    test-framework             >= 0.8      && < 0.9,
-    test-framework-hunit       >= 0.3      && < 0.4,
-    test-framework-quickcheck2 >= 0.3      && < 0.4,
-    QuickCheck                 >= 2.5      && < 2.16
+    transformers     >= 0.5.2.0 && < 0.7,
+    tasty            >= 1.4     && < 1.6,
+    tasty-hunit      >= 0.10    && < 0.11,
+    tasty-quickcheck >= 0.10    && < 0.12,
+    QuickCheck       >= 2.5     && < 2.16
