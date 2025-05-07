@@ -8,6 +8,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 #if !(MIN_VERSION_transformers(0,6,0))
 {-# OPTIONS_GHC -Wno-deprecations #-}
@@ -69,7 +70,7 @@ module Control.Monad.Catch (
   , SomeException(..)
   ) where
 
-import Control.Exception (Exception(..), SomeException(..))
+import Control.Exception (Exception(..), SomeException(..), ExceptionWithContext(..))
 import qualified Control.Exception as ControlException
 import Control.Monad (liftM)
 import qualified Control.Monad.STM as STM
@@ -121,6 +122,10 @@ class Monad m => MonadThrow m where
   -- > throwM e >> f = throwM e
   throwM :: (HasCallStack, Exception e) => e -> m a
 
+  rethrowM :: Exception e => ExceptionWithContext e -> m a 
+  rethrowM = throwM
+
+
 -- | A class for monads which allow exceptions to be caught, in particular
 -- exceptions which were thrown by 'throwM'.
 --
@@ -140,6 +145,8 @@ class MonadThrow m => MonadCatch m where
   -- constrain which exceptions are caught. See "Control.Exception"'s
   -- 'ControlException.catch'.
   catch :: (HasCallStack, Exception e) => m a -> (e -> m a) -> m a
+  catchNoPropagate :: Exception e => m a -> (ExceptionWithContext e -> m a) -> m a 
+  catchNoPropagate = catch
 
 -- | A class for monads which provide for the ability to account for
 -- all possible exit points from a computation, and to mask
@@ -306,21 +313,24 @@ instance MonadThrow Q where
 
 instance MonadThrow IO where
   throwM = ControlException.throwIO
+  rethrowM = ControlException.rethrowIO
 instance MonadCatch IO where
   catch = ControlException.catch
+  catchNoPropagate = ControlException.catchNoPropagate
 instance MonadMask IO where
   mask = ControlException.mask
   uninterruptibleMask = ControlException.uninterruptibleMask
   generalBracket acquire release use = mask $ \unmasked -> do
     resource <- acquire
-    b <- unmasked (use resource) `catch` \e -> do
-      _ <- release resource (ExitCaseException e)
-      throwM e
+    b <- unmasked (use resource) `catchNoPropagate` \(e :: ExceptionWithContext ControlException.SomeException) -> do
+      _ <- release resource (ExitCaseException $ ControlException.toException e)
+      rethrowM e
     c <- release resource (ExitCaseSuccess b)
     return (b, c)
 
 instance MonadThrow (ST s) where
   throwM = unsafeIOToST . ControlException.throwIO
+  rethrowM = unsafeIOToST . ControlException.rethrowIO
 
 instance MonadThrow STM where
   throwM = STM.throwSTM
