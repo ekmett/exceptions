@@ -8,8 +8,10 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
-#if !(MIN_VERSION_transformers(0,6,0))
+#if !MIN_VERSION_transformers(0,6,0)
 {-# OPTIONS_GHC -Wno-deprecations #-}
 #endif
 --------------------------------------------------------------------
@@ -70,6 +72,7 @@ module Control.Monad.Catch (
   ) where
 
 import Control.Exception (Exception(..), SomeException(..))
+
 import qualified Control.Exception as ControlException
 import Control.Monad (liftM)
 import qualified Control.Monad.STM as STM
@@ -93,7 +96,7 @@ import GHC.Stack (HasCallStack, withFrozenCallStack)
 
 import Language.Haskell.TH.Syntax (Q)
 
-#if !(MIN_VERSION_transformers(0,6,0))
+#if !MIN_VERSION_transformers(0,6,0)
 import Control.Monad.Trans.Error (ErrorT(..), Error, runErrorT)
 import Control.Monad.Trans.List (ListT(..), runListT)
 #endif
@@ -121,6 +124,20 @@ class Monad m => MonadThrow m where
   -- > throwM e >> f = throwM e
   throwM :: (HasCallStack, Exception e) => e -> m a
 
+#if MIN_VERSION_base(4,21,0)
+  -- | A utility to use when rethrowing exceptions, no new backtrace will be
+  -- attached when rethrowing an exception but you must supply the existing
+  -- context.
+  --
+  -- It is a generalization of "Control.Exception"'s
+  -- 'ControlException.rethrowIO' and is only defined using @base-4.21@ (GHC
+  -- 9.12) or later.
+
+  rethrowM :: Exception e => ControlException.ExceptionWithContext e -> m a 
+  rethrowM = throwM
+#endif
+
+
 -- | A class for monads which allow exceptions to be caught, in particular
 -- exceptions which were thrown by 'throwM'.
 --
@@ -140,6 +157,20 @@ class MonadThrow m => MonadCatch m where
   -- constrain which exceptions are caught. See "Control.Exception"'s
   -- 'ControlException.catch'.
   catch :: (HasCallStack, Exception e) => m a -> (e -> m a) -> m a
+#if MIN_VERSION_base(4,21,0)
+  -- | A variant of 'catch' which doesn't annotate the handler with the exception
+  -- which was caught. This function should be used when you are implementing
+  -- your own error handling functions which may rethrow the exceptions.
+  --
+  -- In the case where you rethrow an exception without modifying it, you
+  -- should rethrow the exception with the old exception context.
+  --
+  -- It is a generalization of "Control.Exception"'s
+  -- 'ControlException.catchNoPropagate' and is only defined using @base-4.21@
+  -- (GHC 9.12) or later.
+  catchNoPropagate :: Exception e => m a -> (ControlException.ExceptionWithContext e -> m a) -> m a 
+  catchNoPropagate = catch
+#endif
 
 -- | A class for monads which provide for the ability to account for
 -- all possible exit points from a computation, and to mask
@@ -306,21 +337,44 @@ instance MonadThrow Q where
 
 instance MonadThrow IO where
   throwM = ControlException.throwIO
+#if MIN_VERSION_base(4,21,0)
+  rethrowM = ControlException.rethrowIO
+#endif
 instance MonadCatch IO where
   catch = ControlException.catch
+#if MIN_VERSION_base(4,21,0)
+  catchNoPropagate = ControlException.catchNoPropagate
+#endif
 instance MonadMask IO where
   mask = ControlException.mask
   uninterruptibleMask = ControlException.uninterruptibleMask
+
+
+#if MIN_VERSION_base(4,21,0)
   generalBracket acquire release use = mask $ \unmasked -> do
     resource <- acquire
+
+    b <- unmasked (use resource) `catchNoPropagate` \e -> do
+      _ <- release resource (ExitCaseException $ ControlException.toException e)
+      rethrowM @IO @SomeException e
+    c <- release resource (ExitCaseSuccess b)
+    return (b, c)
+#else
+  generalBracket acquire release use = mask $ \unmasked -> do
+    resource <- acquire
+
     b <- unmasked (use resource) `catch` \e -> do
       _ <- release resource (ExitCaseException e)
       throwM e
     c <- release resource (ExitCaseSuccess b)
     return (b, c)
+#endif
 
 instance MonadThrow (ST s) where
   throwM = unsafeIOToST . ControlException.throwIO
+#if MIN_VERSION_base(4,21,0)
+  rethrowM = unsafeIOToST . ControlException.rethrowIO
+#endif
 
 instance MonadThrow STM where
   throwM = STM.throwSTM
@@ -654,7 +708,7 @@ instance MonadThrow m => MonadThrow (ContT r m) where
 -- I don't believe any valid of MonadCatch exists for ContT.
 -- instance MonadCatch m => MonadCatch (ContT r m) where
 
-#if !(MIN_VERSION_transformers(0,6,0))
+#if !MIN_VERSION_transformers(0,6,0)
 -- | Throws exceptions into the base monad.
 instance (Error e, MonadThrow m) => MonadThrow (ErrorT e m) where
   throwM = lift . throwM
