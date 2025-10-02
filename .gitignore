@@ -36,3 +36,6 @@ dist-boot
 dist-install
 GNUmakefile
 ghc.mk
+
+# MHS
+dist-mcabal
