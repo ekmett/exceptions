@@ -48,7 +48,7 @@ library
     transformers               >= 0.5.2.0  && < 0.7
   if impl(ghc)
     build-depends:
-      template-haskell         >= 2.11     && < 2.25,
+      template-haskell         >= 2.11     && < 2.25
 
   exposed-modules:
     Control.Monad.Catch

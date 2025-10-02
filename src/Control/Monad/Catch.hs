@@ -91,11 +91,11 @@ import Control.Monad.Trans.Reader (ReaderT(..), runReaderT)
 
 import GHC.Stack (HasCallStack, withFrozenCallStack)
 
-#if !defined(__MHS__)
-import Language.Haskell.TH.Syntax (Q)
-#else
+#if defined(__MHS__)
 import Prelude hiding(foldr)
 import Data.Foldable
+#else
+import Language.Haskell.TH.Syntax (Q)
 #endif
 
 #if !(MIN_VERSION_transformers(0,6,0))
