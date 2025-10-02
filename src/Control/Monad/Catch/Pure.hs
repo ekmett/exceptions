@@ -50,6 +50,9 @@ import Control.Monad.Trans.Class (MonadTrans(..))
 import Control.Monad.Writer (MonadWriter(..))
 import Data.Functor.Identity
 import Data.Traversable as Traversable
+#if defined(__MHS__)
+import Data.Foldable
+#endif
 
 ------------------------------------------------------------------------------
 -- $mtl

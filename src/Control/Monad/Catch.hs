@@ -91,7 +91,12 @@ import Control.Monad.Trans.Reader (ReaderT(..), runReaderT)
 
 import GHC.Stack (HasCallStack, withFrozenCallStack)
 
+#if !defined(__MHS__)
 import Language.Haskell.TH.Syntax (Q)
+#else
+import Prelude hiding(foldr)
+import Data.Foldable
+#endif
 
 #if !(MIN_VERSION_transformers(0,6,0))
 import Control.Monad.Trans.Error (ErrorT(..), Error, runErrorT)
@@ -301,8 +306,10 @@ instance MonadThrow [] where
   throwM _ = []
 instance MonadThrow Maybe where
   throwM _ = Nothing
+#if !defined(__MHS__)
 instance MonadThrow Q where
   throwM = fail . show
+#endif
 
 instance MonadThrow IO where
   throwM = ControlException.throwIO
