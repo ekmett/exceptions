@@ -72,7 +72,6 @@ module Control.Monad.Catch (
   ) where
 
 import Control.Exception (Exception(..), SomeException(..))
-
 import qualified Control.Exception as ControlException
 import Control.Monad (liftM)
 import qualified Control.Monad.STM as STM
@@ -137,11 +136,9 @@ class Monad m => MonadThrow m where
   -- It is a generalization of "Control.Exception"'s
   -- 'ControlException.rethrowIO' and is only defined using @base-4.21@ (GHC
   -- 9.12) or later.
-
   rethrowM :: Exception e => ControlException.ExceptionWithContext e -> m a
   rethrowM = throwM
 #endif
-
 
 -- | A class for monads which allow exceptions to be caught, in particular
 -- exceptions which were thrown by 'throwM'.
