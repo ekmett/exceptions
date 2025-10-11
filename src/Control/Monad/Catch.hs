@@ -1,15 +1,15 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE Trustworthy #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 #if !MIN_VERSION_transformers(0,6,0)
 {-# OPTIONS_GHC -Wno-deprecations #-}
@@ -138,7 +138,7 @@ class Monad m => MonadThrow m where
   -- 'ControlException.rethrowIO' and is only defined using @base-4.21@ (GHC
   -- 9.12) or later.
 
-  rethrowM :: Exception e => ControlException.ExceptionWithContext e -> m a 
+  rethrowM :: Exception e => ControlException.ExceptionWithContext e -> m a
   rethrowM = throwM
 #endif
 
@@ -173,7 +173,7 @@ class MonadThrow m => MonadCatch m where
   -- It is a generalization of "Control.Exception"'s
   -- 'ControlException.catchNoPropagate' and is only defined using @base-4.21@
   -- (GHC 9.12) or later.
-  catchNoPropagate :: Exception e => m a -> (ControlException.ExceptionWithContext e -> m a) -> m a 
+  catchNoPropagate :: Exception e => m a -> (ControlException.ExceptionWithContext e -> m a) -> m a
   catchNoPropagate = catch
 #endif
 
