@@ -75,4 +75,4 @@ test-suite exceptions-tests
     tasty            >= 1.4     && < 1.6,
     tasty-hunit      >= 0.10    && < 0.11,
     tasty-quickcheck >= 0.10    && < 0.12,
-    QuickCheck       >= 2.5     && < 2.17
+    QuickCheck       >= 2.5     && < 2.18
