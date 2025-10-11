@@ -1,3 +1,13 @@
+next [????.??.??]
+-----------------
+* Add a `rethrowM` method to the `MonadThrow` class and a `catchNoPropagate`
+  method to the `MonadCatch` class, which are available when building with
+  `base-4.21` (GHC 9.12) or later. These are like `throwM` and `catch`,
+  respectively (and use them as their default implementations), but these
+  methods do not add new backtraces (for `rethrowM`) or annotate the handler
+  with the exception that was caught (for `catchNoPropagate`).
+* Support building with MicroHs.
+
 0.10.10 [2025.06.17]
 --------------------
 * Replace `test-framework` with `tasty` in the test suite.
