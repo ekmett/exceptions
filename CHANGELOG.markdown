@@ -1,5 +1,5 @@
-next [????.??.??]
------------------
+0.10.11 [2025.10.13]
+--------------------
 * Add a `rethrowM` method to the `MonadThrow` class and a `catchNoPropagate`
   method to the `MonadCatch` class, which are available when building with
   `base-4.21` (GHC 9.12) or later. These are like `throwM` and `catch`,
