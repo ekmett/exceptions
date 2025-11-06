@@ -100,6 +100,10 @@ import Data.Foldable
 import Language.Haskell.TH.Syntax (Q)
 #endif
 
+#if MIN_VERSION_transformers(0,5,6)
+import Control.Monad.Trans.Accum (AccumT (..), runAccumT, evalAccumT)
+#endif
+
 #if !MIN_VERSION_transformers(0,6,0)
 import Control.Monad.Trans.Error (ErrorT(..), Error, runErrorT)
 import Control.Monad.Trans.List (ListT(..), runListT)
@@ -711,6 +715,19 @@ instance MonadThrow m => MonadThrow (ContT r m) where
   throwM = lift . throwM
 -- I don't believe any valid of MonadCatch exists for ContT.
 -- instance MonadCatch m => MonadCatch (ContT r m) where
+
+#if MIN_VERSION_transformers(0,5,6)
+instance (Monoid w, MonadThrow m) => MonadThrow (AccumT w m) where
+  throwM = lift . throwM
+
+instance (MonadCatch m, Monoid w) => MonadCatch (AccumT w m) where
+  catch (AccumT m) f = AccumT $ \w -> catch (m w) $ \e -> runAccumT (f e) w
+
+instance (MonadMask m, Monoid w) => MonadMask (AccumT w m) where
+  mask f = AccumT $ \w -> mask $ \g -> flip runAccumT w $ f $ \(AccumT m) -> AccumT $ \w' -> g $ m w'
+  uninterruptibleMask f = AccumT $ \w -> uninterruptibleMask $ \g -> flip runAccumT w $ f $ \(AccumT m) -> AccumT $ \w' -> g $ m w'
+  generalBracket m f g = AccumT $ \w -> (\(b, (c, w')) -> ((b, c), w')) <$> generalBracket (runAccumT m w) (\(a, w') exitCase -> runAccumT (f a exitCase) (w <> w')) (\(a, w') -> evalAccumT (g a) (w <> w'))
+#endif
 
 #if !MIN_VERSION_transformers(0,6,0)
 -- | Throws exceptions into the base monad.
