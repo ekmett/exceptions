@@ -1,3 +1,8 @@
+next [????.??.??]
+-----------------
+* Add `Monad{Throw,Catch,Mask}` instances for `AccumT` when building with
+  `transformers-0.5.6` or later.
+
 0.10.11 [2025.10.13]
 --------------------
 * Add a `rethrowM` method to the `MonadThrow` class and a `catchNoPropagate`
