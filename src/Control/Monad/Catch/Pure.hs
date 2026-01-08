@@ -61,7 +61,7 @@ import Data.Foldable
 
 ------------------------------------------------------------------------------
 -- $transformer
--- The @transformers@-style monad transfomer
+-- The @transformers@-style monad transformer
 ------------------------------------------------------------------------------
 
 -- | Add 'Exception' handling abilities to a 'Monad'.

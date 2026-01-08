@@ -242,7 +242,7 @@ class MonadCatch m => MonadMask m where
   -- library. Previously, implementation of functions like 'bracket'
   -- and 'finally' in this module were based on the 'mask' and
   -- 'uninterruptibleMask' functions only, disallowing some classes of
-  -- tranformers from having @MonadMask@ instances (notably
+  -- transformers from having @MonadMask@ instances (notably
   -- multi-exit-point transformers like 'ExceptT'). If you are a
   -- library author, you'll now need to provide an implementation for
   -- this method. The @StateT@ implementation demonstrates most of the
