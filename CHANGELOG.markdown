@@ -2,6 +2,7 @@ next [????.??.??]
 -----------------
 * Add `Monad{Throw,Catch,Mask}` instances for `AccumT` when building with
   `transformers-0.5.6` or later.
+* Remove unused `template-haskell` dependency in the test suite.
 
 0.10.11 [2025.10.13]
 --------------------

@@ -70,7 +70,6 @@ test-suite exceptions-tests
     exceptions,
     mtl,
     stm,
-    template-haskell,
     transformers     >= 0.5.2.0 && < 0.7,
     tasty            >= 1.4     && < 1.6,
     tasty-hunit      >= 0.10    && < 0.11,
