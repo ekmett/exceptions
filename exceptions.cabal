@@ -1,8 +1,8 @@
+cabal-version: 2.2
 name:          exceptions
 category:      Control, Exceptions, Monad
 version:       0.10.12
-cabal-version: >= 1.10
-license:       BSD3
+license:       BSD-3-Clause
 license-file:  LICENSE
 author:        Edward A. Kmett
 maintainer:    Edward A. Kmett <ekmett@gmail.com>
@@ -53,7 +53,7 @@ library
   -- this conditional can be dropped
   if impl(ghc < 9.14)
     build-depends: template-haskell
-  else
+  elif impl(ghc)
     build-depends: template-haskell-lift >= 0.1 && <0.2
 
   exposed-modules:
